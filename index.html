@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Canvas 擬真物理翻頁書 (修復版)</title>
+    <title>Canvas 擬真物理翻頁書 (完美跨頁修復版)</title>
     <style>
         body {
             background-color: #333;
@@ -93,8 +93,7 @@
             background: rgba(30, 30, 30, 0.95);
             display: flex;
             align-items: center;
-            /* 左側預留 60px 邊距，避開 CodePen 等平台的左下角懸浮按鈕 */
-            padding: 0 20px 0 60px;
+            padding: 0 20px 0 60px; /* 左側預留邊距避免干擾平台 UI */
             box-sizing: border-box;
             z-index: 100;
             color: #ccc;
@@ -255,10 +254,8 @@
         <canvas id="flipbook"></canvas>
     </div>
 
-    <!-- 水平縮圖列 -->
     <div class="thumb-bar" id="thumb-bar"></div>
 
-    <!-- 底部工具列 -->
     <div class="toolbar" id="toolbar" style="display: none;">
         <button class="tool-btn" id="btn-zoom-in" title="放大">➕</button>
         <button class="tool-btn" id="btn-zoom-out" title="縮小">➖</button>
@@ -405,15 +402,39 @@
         }
         fetchImagesFromSheet();
 
+        // ★ 核心修復：重寫 ConstrainPoint 物理幾何限制，允許紙張平滑跨越中線
         function constrainPoint(P, C) {
             let p = { x: P.x, y: P.y };
-            let dx = p.x - C.x; let dy = p.y - C.y;
-            let dist = Math.hypot(dx, dy); let maxDist = Math.hypot(pageW, pageH);
-            if (dist > maxDist) {
-                p.x = C.x + (dx / dist) * maxDist; p.y = C.y + (dy / dist) * maxDist;
+
+            // 定義紙張錨點(書脊)的 X 座標
+            let spineXPos = 0;
+            if (isSinglePageMode && C.x === 0) spineXPos = pageW;
+
+            // 限制一：拉扯點距離同側書脊不能超過紙張寬度 (避免紙張被拉斷)
+            let spineBase = { x: spineXPos, y: C.y };
+            let dxSpine = p.x - spineBase.x;
+            let dySpine = p.y - spineBase.y;
+            let distSpine = Math.hypot(dxSpine, dySpine);
+            if (distSpine > pageW) {
+                p.x = spineBase.x + (dxSpine / distSpine) * pageW;
+                p.y = spineBase.y + (dySpine / distSpine) * pageW;
             }
-            if (isSinglePageMode) { if (p.x < 0) p.x = 0; } 
-            else { if (C.x > 0 && p.x < 0) p.x = 0; if (C.x < 0 && p.x > 0) p.x = 0; }
+
+            // 限制二：拉扯點距離對側書脊不能超過對角線長度 (避免對角線變形)
+            let oppSpineBase = { x: spineXPos, y: (C.y === 0 ? pageH : 0) };
+            let dxOpp = p.x - oppSpineBase.x;
+            let dyOpp = p.y - oppSpineBase.y;
+            let distOpp = Math.hypot(dxOpp, dyOpp);
+            let diagonal = Math.hypot(pageW, pageH);
+            if (distOpp > diagonal) {
+                p.x = oppSpineBase.x + (dxOpp / distOpp) * diagonal;
+                p.y = oppSpineBase.y + (dyOpp / distOpp) * diagonal;
+            }
+            
+            // 安全限制：防止異常彈跳
+            if (p.x < -pageW * 2) p.x = -pageW * 2;
+            if (p.x > pageW * 2) p.x = pageW * 2;
+
             return p;
         }
 
@@ -494,27 +515,26 @@
                 if (rightIdx <= imageUrls.length) drawPageContent(ctx, rightIdx);
             } else {
                 let bottomIdx, topIdx, peelCorner, isFlippingRight;
+                
+                // 支援從上方或下方翻頁
+                let cornerY = flip.p.y < pageH / 2 ? 0 : pageH;
+
                 if (flip.dir === 1) { 
                     isFlippingRight = true; topIdx = rightIdx;
-                    bottomIdx = isSinglePageMode ? rightIdx + 1 : rightIdx + 2; peelCorner = { x: pageW, y: pageH };
+                    bottomIdx = isSinglePageMode ? rightIdx + 1 : rightIdx + 2; 
+                    peelCorner = { x: pageW, y: cornerY };
                 } else { 
                     isFlippingRight = false;
-                    if (isSinglePageMode) { topIdx = rightIdx - 1; bottomIdx = rightIdx; peelCorner = { x: 0, y: pageH }; } 
-                    else { topIdx = leftIdx; bottomIdx = leftIdx - 2; peelCorner = { x: -pageW, y: pageH }; }
+                    if (isSinglePageMode) { topIdx = rightIdx - 1; bottomIdx = rightIdx; peelCorner = { x: 0, y: cornerY }; } 
+                    else { topIdx = leftIdx; bottomIdx = leftIdx - 2; peelCorner = { x: -pageW, y: cornerY }; }
                 }
                 
-                // ★ 修復：翻頁時畫出靜止不動的那側頁面
+                // 畫出對側靜止不動的頁面
                 if (!isSinglePageMode) {
                     if (isFlippingRight) {
-                        // 往左翻（掀起右頁），左頁保持不動
-                        if (leftIdx >= 0) {
-                            ctx.save(); ctx.translate(-pageW, 0); drawPageContent(ctx, leftIdx); ctx.restore();
-                        }
+                        if (leftIdx >= 0) { ctx.save(); ctx.translate(-pageW, 0); drawPageContent(ctx, leftIdx); ctx.restore(); }
                     } else {
-                        // 往右翻（掀起左頁），右頁保持不動
-                        if (rightIdx <= imageUrls.length) {
-                            drawPageContent(ctx, rightIdx);
-                        }
+                        if (rightIdx < imageUrls.length) { drawPageContent(ctx, rightIdx); }
                     }
                 }
 
@@ -533,12 +553,15 @@
                         (isFlippingRight ? [{x:0,y:0}, {x:pageW,y:0}, {x:pageW,y:pageH}, {x:0,y:pageH}] :
                         [{x:-pageW,y:0}, {x:0,y:0}, {x:0,y:pageH}, {x:-pageW,y:pageH}]);
 
-                    let polyUnfold = clipPolygon(pageRect, M, n); let polyFold = clipPolygon(pageRect, M, {x: -n.x, y: -n.y});
+                    let polyUnfold = clipPolygon(pageRect, M, n); 
+                    let polyFold = clipPolygon(pageRect, M, {x: -n.x, y: -n.y});
 
+                    // 1. 畫尚未翻起的另一半頁面
                     ctx.save(); tracePoly(ctx, polyUnfold); ctx.clip();
                     if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0);
                     drawPageContent(ctx, topIdx); ctx.restore();
 
+                    // 2. 畫翻起處下方的環境深色陰影
                     ctx.save(); tracePoly(ctx, polyFold); ctx.clip();
                     let shadowGrad = ctx.createLinearGradient(M.x, M.y, M.x - n.x*120, M.y - n.y*120);
                     shadowGrad.addColorStop(0, 'rgba(0,0,0,0.6)');
@@ -546,16 +569,28 @@
                     shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
                     ctx.fillStyle = shadowGrad; ctx.fillRect(isSinglePageMode || isFlippingRight ? 0 : -pageW, 0, pageW, pageH); ctx.restore();
 
-                    ctx.save(); let t = { x: -n.y, y: n.x }; let alpha = Math.atan2(t.y, t.x);
+                    // 3. 處理翻起來的背面、邊緣立體投影 (Drop Shadow)
+                    ctx.save(); 
+                    let t = { x: -n.y, y: n.x }; let alpha = Math.atan2(t.y, t.x);
                     ctx.translate(M.x, M.y); ctx.rotate(alpha); ctx.scale(1, -1); ctx.rotate(-alpha); ctx.translate(-M.x, -M.y);
                     
-                    tracePoly(ctx, polyFold); ctx.clip();
+                    // ★ 新增：跨頁投影，讓翻過去的頁面浮在對側頁面之上
+                    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                    ctx.shadowBlur = 20;
+                    ctx.shadowOffsetY = 5;
+                    ctx.fillStyle = '#fff';
+                    tracePoly(ctx, polyFold);
+                    ctx.fill();
+
+                    // 套用遮罩並畫出背面圖像
+                    ctx.clip();
                     let backIdx = flip.dir === 1 ? topIdx + 1 : (isSinglePageMode ? topIdx : topIdx - 1);
                     ctx.save();
                     if (isSinglePageMode || isFlippingRight) { ctx.translate(pageW, 0); ctx.scale(-1, 1); } 
                     else { ctx.scale(-1, 1); }
                     drawPageContent(ctx, backIdx); ctx.restore();
                     
+                    // 4. 畫背面紙張捲曲的「3D 高光與立體圓柱漸層」
                     let foldGrad = ctx.createLinearGradient(M.x, M.y, M.x + n.x*100, M.y + n.y*100);
                     foldGrad.addColorStop(0, 'rgba(0,0,0,0.5)');        
                     foldGrad.addColorStop(0.08, 'rgba(255,255,255,0.7)'); 
@@ -563,6 +598,7 @@
                     foldGrad.addColorStop(1, 'rgba(0,0,0,0.15)');       
                     ctx.fillStyle = foldGrad; ctx.fill();
 
+                    // 5. 邊緣亮線，增加紙張厚度感
                     ctx.beginPath();
                     ctx.moveTo(polyFold[0].x, polyFold[0].y);
                     for(let i=1; i<polyFold.length; i++) ctx.lineTo(polyFold[i].x, polyFold[i].y);
@@ -618,33 +654,45 @@
             document.getElementById('btn-grid').classList.remove('active');
 
             let local = getLocalPointer(e); let corner;
-            if (isSinglePageMode) {
-                if (local.y > pageH * 0.7) {
-                    if (local.x > pageW * 0.7 && currentSpread < maxIndex) { corner = { x: pageW, y: pageH }; flip.dir = 1; }
-                    else if (local.x < pageW * 0.3 && currentSpread > 0) { corner = { x: 0, y: pageH }; flip.dir = -1; }
-                }
-            } else {
-                if (local.y > pageH * 0.7) {
-                    if (local.x > pageW * 0.5 && currentSpread < maxIndex) { corner = { x: pageW, y: pageH }; flip.dir = 1; }
-                    else if (local.x < -pageW * 0.5 && currentSpread > 0) { corner = { x: -pageW, y: pageH }; flip.dir = -1; }
+            let isTop = local.y < pageH * 0.5;
+            let cornerY = isTop ? 0 : pageH;
+
+            // ★ 支援上下書角拖曳
+            let isNearCornerY = isTop ? (local.y < pageH * 0.3) : (local.y > pageH * 0.7);
+
+            if (isNearCornerY) {
+                if (isSinglePageMode) {
+                    if (local.x > pageW * 0.7 && currentSpread < maxIndex) { corner = { x: pageW, y: cornerY }; flip.dir = 1; }
+                    else if (local.x < pageW * 0.3 && currentSpread > 0) { corner = { x: 0, y: cornerY }; flip.dir = -1; }
+                } else {
+                    if (local.x > pageW * 0.5 && currentSpread < maxIndex) { corner = { x: pageW, y: cornerY }; flip.dir = 1; }
+                    else if (local.x < -pageW * 0.5 && currentSpread > 0) { corner = { x: -pageW, y: cornerY }; flip.dir = -1; }
                 }
             }
+
             if (corner) {
                 flip.active = true; flip.dragging = true; flip.p = { x: corner.x, y: corner.y };
-                flip.target = { x: corner.x - flip.dir * 30, y: corner.y - 10 };
+                // 拖拉時微幅向中心收縮，建立立體感
+                flip.target = { x: corner.x - flip.dir * 30, y: corner.y + (isTop ? 20 : -20) };
                 flip.animating = true; dragStart = local; canvas.style.cursor = 'grabbing'; e.preventDefault();
             }
         }
+        
         function handlePointerMove(e) {
             let local = getLocalPointer(e);
             if (flip.dragging) { flip.p = local; flip.animating = false; e.preventDefault(); } 
             else {
+                let isTop = local.y < pageH * 0.3;
+                let isBottom = local.y > pageH * 0.7;
                 let isHover = false;
-                if (isSinglePageMode) { if (local.y > pageH*0.7 && (local.x > pageW*0.7 || local.x < pageW*0.3)) isHover = true; } 
-                else { if (local.y > pageH*0.7 && (local.x > pageW*0.5 || local.x < -pageW*0.5)) isHover = true; }
+                if (isTop || isBottom) {
+                    if (isSinglePageMode) { if (local.x > pageW*0.7 || local.x < pageW*0.3) isHover = true; } 
+                    else { if (local.x > pageW*0.5 || local.x < -pageW*0.5) isHover = true; }
+                }
                 canvas.style.cursor = isHover ? 'grab' : 'default';
             }
         }
+        
         function handlePointerUp(e) {
             if (flip.dragging) {
                 flip.dragging = false; flip.animating = true; canvas.style.cursor = 'grab';
@@ -652,19 +700,21 @@
                 if (dist < 20) setFlipTarget(flip.dir, true);
                 else {
                     let titleOver = false;
-                    if (flip.dir === 1 && flip.p.x < (isSinglePageMode ? pageW/2 : 0)) titleOver = true;
-                    if (flip.dir === -1 && flip.p.x > (isSinglePageMode ? pageW/2 : 0)) titleOver = true;
+                    if (flip.dir === 1 && flip.p.x < (isSinglePageMode ? pageW/4 : 0)) titleOver = true;
+                    if (flip.dir === -1 && flip.p.x > (isSinglePageMode ? pageW*3/4 : 0)) titleOver = true;
                     setFlipTarget(flip.dir, titleOver);
                 }
             }
         }
+        
         function setFlipTarget(dir, isSuccess) {
-             let finalX, finalY = flip.p.y; 
+             let finalX, finalY; 
              if (isSuccess) {
                  if (isSinglePageMode) finalX = dir === 1 ? -pageW * 0.8 : pageW * 1.8;
                  else finalX = dir === 1 ? -pageW * 1.5 : pageW * 1.5;
+                 finalY = flip.p.y; // 保持當前 Y 軸平滑翻落
              } else {
-                 finalY = pageH;
+                 finalY = flip.p.y < pageH / 2 ? 0 : pageH; // 回彈至原本角落
                  if (isSinglePageMode) finalX = dir === 1 ? pageW : 0;
                  else finalX = dir === 1 ? pageW : -pageW;
              }
