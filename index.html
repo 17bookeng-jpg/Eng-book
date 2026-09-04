@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Canvas 真實物理翻頁書 (RWD & Physics)</title>
+    <style>
+        body {
+            background-color: #d1d8e0;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            font-family: "Inter", "Microsoft JhengHei", sans-serif;
+            color: #333;
+            touch-action: none; 
+        }
+
+        .book-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            filter: drop-shadow(0 15px 25px rgba(0,0,0,0.25));
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+            font-weight: bold;
+            color: #555;
+            background: rgba(255,255,255,0.95);
+            padding: 12px 24px;
+            border-radius: 30px;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 20;
+        }
+
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            font-size: 24px;
+            color: #333;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            transition: all 0.3s ease, opacity 0.3s ease;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            outline: none;
+        }
+        @media (hover: hover) {
+            .nav-btn:hover {
+                background: rgba(255, 255, 255, 0.9);
+                transform: translateY(-50%) scale(1.1);
+            }
+        }
+        .nav-btn:disabled {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .left-btn { left: 30px; }
+        .right-btn { right: 30px; }
+
+        /* 新增：頁數控制面板樣式 */
+        #page-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 8px 20px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            font-weight: bold;
+            color: #555;
+        }
+
+        #page-input {
+            width: 45px;
+            text-align: center;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            background: rgba(255, 255, 255, 0.9);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        #page-input:focus {
+            border-color: #555;
+        }
+
+        /* 隱藏數字輸入框的預設上下箭頭 */
+        #page-input::-webkit-outer-spin-button,
+        #page-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        #page-input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        @media (max-aspect-ratio: 1/1) {
+            .nav-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+            .left-btn { left: 10px; }
+            .right-btn { right: 10px; }
+            #page-indicator { bottom: 15px; padding: 6px 16px; font-size: 14px; }
+            #page-input { width: 40px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="book-container">
+        <div id="loading">載入圖片中，請稍候...</div>
+        <button id="prev-btn" class="nav-btn left-btn" disabled>❮</button>
+        <button id="next-btn" class="nav-btn right-btn" disabled>❯</button>
+        
+        <!-- 新增：頁數顯示與輸入框 -->
+        <div id="page-indicator" style="display: none;">
+            <input type="number" id="page-input" min="1" value="1">
+            <span id="total-pages">/ 0</span>
+        </div>
+
+        <canvas id="flipbook"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('flipbook');
+        const ctx = canvas.getContext('2d', { alpha: false }); 
+        
+        // 新增 DOM 元素選取
+        const pageIndicator = document.getElementById('page-indicator');
+        const pageInput = document.getElementById('page-input');
+        const totalPagesSpan = document.getElementById('total-pages');
+        
+        let canvasW, canvasH, paddingX, paddingY, bookW, bookH, pageW, pageH, spineX;
+        let currentSpread = 0; 
+        let isSinglePageMode = false; 
+
+        let imageUrls = [];
+        let maxIndex = 0;
+        const images = [];
+        let loadedCount = 0;
+        let isImagesLoaded = false;
+
+        const flip = {
+            active: false,
+            dragging: false,
+            animating: false,
+            dir: 1, 
+            p: { x: 0, y: 0 },
+            target: { x: 0, y: 0 },
+            v: { x: 0, y: 0 },
+            tension: 0.25,
+            damping: 0.75
+        };
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+            
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.scale(dpr, dpr);
+
+            canvasW = window.innerWidth;
+            canvasH = window.innerHeight;
+
+            isSinglePageMode = canvasH > canvasW * 1.05;
+
+            let targetPageAspect = 1.414; 
+            if (images.length > 0 && images[0] && images[0].width) {
+                targetPageAspect = images[0].height / images[0].width;
+            }
+
+            let bookAspect;
+            if (isSinglePageMode) {
+                bookAspect = targetPageAspect;
+                maxIndex = imageUrls.length - 1; 
+            } else {
+                bookAspect = targetPageAspect / 2;
+                maxIndex = Math.ceil(imageUrls.length / 2) - 1;
+            }
+
+            const screenAspect = canvasH / canvasW;
+            const marginRatio = isSinglePageMode ? 0.03 : 0.06; 
+
+            if (screenAspect > bookAspect) {
+                bookW = canvasW * (1 - marginRatio * 2);
+                bookH = bookW * bookAspect;
+            } else {
+                bookH = canvasH * (1 - marginRatio * 2);
+                bookW = bookH / bookAspect;
+            }
+
+            paddingX = (canvasW - bookW) / 2;
+            paddingY = (canvasH - bookH) / 2;
+
+            if (isSinglePageMode) {
+                pageW = bookW;
+                spineX = paddingX; 
+            } else {
+                pageW = bookW / 2;
+                spineX = canvasW / 2; 
+            }
+            pageH = bookH;
+            
+            flip.active = false;
+            flip.animating = false;
+            flip.dragging = false;
+            flip.v = { x: 0, y: 0 };
+            
+            updateNavButtons();
+            if (isImagesLoaded) draw();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', resizeCanvas);
+
+        function checkAllImagesLoaded() {
+            loadedCount++;
+            if (loadedCount === imageUrls.length) {
+                document.getElementById('loading').style.display = 'none';
+                pageIndicator.style.display = 'flex'; // 顯示控制面板
+                isImagesLoaded = true;
+                resizeCanvas();
+                requestAnimationFrame(renderLoop);
+            }
+        }
+
+        async function fetchImagesFromSheet() {
+            const sheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpzQghjNZwK55tv9DZw6jVikZPkPdmHTkXDyXIz5pcg_Ao7B5KkTMKwFP4VRsRgFwj22yuXl3V8Ndm/pub?gid=0&single=true&output=csv'; 
+
+            try {
+                document.getElementById('loading').innerText = '正在同步試算表資料...';
+                const response = await fetch(sheetCsvUrl);
+                if (!response.ok) throw new Error('網路讀取失敗');
+                const csvText = await response.text();
+                
+                const rows = csvText.split('\n').map(r => r.trim());
+                
+                imageUrls = rows
+                    .filter(row => row.startsWith('http'))
+                    .map(url => url.replace('?authuser=0', ''));
+
+                // 初始化總頁數
+                totalPagesSpan.textContent = `/ ${imageUrls.length}`;
+                pageInput.max = imageUrls.length;
+
+                startImageLoading();
+            } catch (error) {
+                console.error('讀取試算表失敗:', error);
+                document.getElementById('loading').innerText = '讀取試算表失敗，請檢查發布網址';
+            }
+        }
+
+        function startImageLoading() {
+            if (imageUrls.length === 0) {
+                document.getElementById('loading').innerText = '試算表中未找到有效圖片網址';
+            } else {
+                document.getElementById('loading').innerText = '載入圖片中，請稍候...';
+                imageUrls.forEach((url, i) => {
+                    const img = new Image();
+                    img.onload = () => { images[i] = img; checkAllImagesLoaded(); };
+                    img.onerror = () => { images[i] = null; checkAllImagesLoaded(); };
+                    img.src = url;
+                });
+            }
+        }
+
+        fetchImagesFromSheet();
+
+        function constrainPoint(P, C) {
+            let p = { x: P.x, y: P.y };
+            let dx = p.x - C.x;
+            let dy = p.y - C.y;
+            let dist = Math.hypot(dx, dy);
+            let maxDist = Math.hypot(pageW, pageH);
+
+            if (dist > maxDist) {
+                p.x = C.x + (dx / dist) * maxDist;
+                p.y = C.y + (dy / dist) * maxDist;
+            }
+            if (isSinglePageMode) {
+                if (p.x < 0) p.x = 0;
+            } else {
+                if (C.x > 0 && p.x < 0) p.x = 0; 
+                if (C.x < 0 && p.x > 0) p.x = 0; 
+            }
+            return p;
+        }
+
+        function clipPolygon(points, M, n) {
+            let result = [];
+            for (let i = 0; i < points.length; i++) {
+                let p1 = points[i];
+                let p2 = points[(i + 1) % points.length];
+                let v1 = (p1.x - M.x) * n.x + (p1.y - M.y) * n.y;
+                let v2 = (p2.x - M.x) * n.x + (p2.y - M.y) * n.y;
+                if (v1 >= 0) result.push(p1);
+                if (v1 * v2 < 0) {
+                    let t = v1 / (v1 - v2);
+                    result.push({ x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) });
+                }
+            }
+            return result;
+        }
+
+        function tracePoly(ctx, pts) {
+            if (!pts || pts.length === 0) return;
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+            ctx.closePath();
+        }
+
+        function drawPageContent(ctx, idx) {
+            ctx.fillStyle = '#ffffff'; 
+            ctx.fillRect(0, 0, pageW, pageH);
+
+            if (idx >= 0 && idx < imageUrls.length) {
+                const img = images[idx];
+                if (img && img.width) {
+                    const margin = pageW * 0.005; 
+                    const availW = pageW - margin * 2;
+                    const availH = pageH - margin * 2;
+                    
+                    const imgAspect = img.width / img.height;
+                    const pageAspect = availW / availH;
+                    let drawW, drawH;
+
+                    if (imgAspect > pageAspect) {
+                        drawW = availW;
+                        drawH = availW / imgAspect;
+                    } else {
+                        drawH = availH;
+                        drawW = availH * imgAspect;
+                    }
+                    
+                    let offsetX = 0;
+                    if (!isSinglePageMode) {
+                        let isLeftPage = (idx % 2 !== 0);
+                        if (isLeftPage) {
+                            offsetX = - (pageW * 0.005);
+                        } else {
+                            offsetX = (pageW * 0.005);  
+                        }
+                    }
+
+                    let drawX = margin + (availW - drawW) / 2 + offsetX;
+                    let drawY = margin + (availH - drawH) / 2;
+                    
+                    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+                } else {
+                    ctx.fillStyle = '#f8f9fa';
+                    let boxW = pageW * 0.8;
+                    let boxH = pageH * 0.8;
+                    ctx.fillRect((pageW - boxW)/2, (pageH - boxH)/2, boxW, boxH);
+                    ctx.fillStyle = '#dc3545';
+                    ctx.font = 'bold 18px "Microsoft JhengHei", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('圖片載入失敗', pageW / 2, pageH / 2);
+                }
+            }
+
+            ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(0, 0, pageW, pageH);
+            
+            if (!isSinglePageMode) {
+                 let isLeftPage = (idx % 2 !== 0); 
+                 if (isLeftPage) {
+                     let spineShadow = ctx.createLinearGradient(pageW - 25, 0, pageW, 0);
+                     spineShadow.addColorStop(0, 'rgba(0,0,0,0)');
+                     spineShadow.addColorStop(1, 'rgba(0,0,0,0.12)');
+                     ctx.fillStyle = spineShadow;
+                     ctx.fillRect(pageW - 25, 0, 25, pageH);
+                 } else {
+                     let spineShadow = ctx.createLinearGradient(0, 0, 25, 0);
+                     spineShadow.addColorStop(0, 'rgba(0,0,0,0.12)');
+                     spineShadow.addColorStop(1, 'rgba(0,0,0,0)');
+                     ctx.fillStyle = spineShadow;
+                     ctx.fillRect(0, 0, 25, pageH);
+                 }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvasW, canvasH);
+            
+            ctx.save();
+            ctx.translate(paddingX, paddingY);
+            ctx.fillStyle = 'rgba(0,0,0,0.05)';
+            ctx.shadowColor = 'rgba(0,0,0,0.15)';
+            ctx.shadowBlur = 25;
+            ctx.shadowOffsetY = 10;
+            ctx.fillRect(0, 0, bookW, bookH);
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(spineX, paddingY);
+
+            let leftIdx, rightIdx;
+            if (isSinglePageMode) {
+                leftIdx = -1;
+                rightIdx = currentSpread;
+            } else {
+                leftIdx = currentSpread * 2 - 1;
+                rightIdx = currentSpread * 2;
+            }
+
+            if (!flip.active) {
+                if (!isSinglePageMode && leftIdx >= 0) {
+                    ctx.save(); ctx.translate(-pageW, 0); drawPageContent(ctx, leftIdx); ctx.restore();
+                }
+                if (rightIdx <= imageUrls.length) {
+                     drawPageContent(ctx, rightIdx);
+                }
+            } else {
+                let bottomIdx, topIdx, peelCorner, isFlippingRight;
+
+                if (flip.dir === 1) { 
+                    isFlippingRight = true;
+                    topIdx = rightIdx;
+                    bottomIdx = isSinglePageMode ? rightIdx + 1 : rightIdx + 2;
+                    peelCorner = { x: pageW, y: pageH };
+                } else { 
+                    isFlippingRight = false;
+                    if (isSinglePageMode) {
+                        topIdx = rightIdx - 1; bottomIdx = rightIdx; peelCorner = { x: 0, y: pageH };
+                    } else {
+                        topIdx = leftIdx; bottomIdx = leftIdx - 2; peelCorner = { x: -pageW, y: pageH };
+                    }
+                }
+                
+                ctx.save();
+                if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0);
+                drawPageContent(ctx, bottomIdx);
+                ctx.restore();
+
+                let P = constrainPoint(flip.p, peelCorner);
+                let dx = P.x - peelCorner.x, dy = P.y - peelCorner.y;
+                let dist = Math.hypot(dx, dy);
+
+                if (dist > 1) {
+                    let M = { x: (peelCorner.x + P.x)/2, y: (peelCorner.y + P.y)/2 };
+                    let n = { x: dx/dist, y: dy/dist };
+                    
+                    let pageRect = isSinglePageMode ? 
+                        [{x:0,y:0}, {x:pageW,y:0}, {x:pageW,y:pageH}, {x:0,y:pageH}] :
+                        (isFlippingRight ? 
+                            [{x:0,y:0}, {x:pageW,y:0}, {x:pageW,y:pageH}, {x:0,y:pageH}] :
+                            [{x:-pageW,y:0}, {x:0,y:0}, {x:0,y:pageH}, {x:-pageW,y:pageH}]);
+
+                    let polyUnfold = clipPolygon(pageRect, M, n);
+                    let polyFold = clipPolygon(pageRect, M, {x: -n.x, y: -n.y});
+
+                    ctx.save();
+                    tracePoly(ctx, polyUnfold); ctx.clip();
+                    if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0);
+                    drawPageContent(ctx, topIdx);
+                    ctx.restore();
+
+                    ctx.save();
+                    tracePoly(ctx, polyFold); ctx.clip();
+                    let shadowGrad = ctx.createLinearGradient(M.x, M.y, M.x - n.x*100, M.y - n.y*100);
+                    shadowGrad.addColorStop(0, 'rgba(0,0,0,0.3)');
+                    shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = shadowGrad;
+                    ctx.fillRect(isSinglePageMode || isFlippingRight ? 0 : -pageW, 0, pageW, pageH);
+                    ctx.restore();
+
+                    ctx.save();
+                    let t = { x: -n.y, y: n.x };
+                    let alpha = Math.atan2(t.y, t.x);
+                    ctx.translate(M.x, M.y);
+                    ctx.rotate(alpha); ctx.scale(1, -1); ctx.rotate(-alpha);
+                    ctx.translate(-M.x, -M.y);
+                    
+                    tracePoly(ctx, polyFold); ctx.clip();
+
+                    let backIdx = flip.dir === 1 ? topIdx + 1 : (isSinglePageMode ? topIdx : topIdx - 1);
+                    
+                    ctx.save();
+                    if (isSinglePageMode || isFlippingRight) {
+                         ctx.translate(pageW, 0); ctx.scale(-1, 1);
+                    } else {
+                         ctx.scale(-1, 1);
+                    }
+                    drawPageContent(ctx, backIdx);
+                    ctx.restore();
+                    
+                    let foldGrad = ctx.createLinearGradient(M.x, M.y, M.x + n.x*50, M.y + n.y*50);
+                    foldGrad.addColorStop(0, 'rgba(0,0,0,0.25)');
+                    foldGrad.addColorStop(0.5, 'rgba(255,255,255,0.4)');
+                    foldGrad.addColorStop(1, 'rgba(0,0,0,0.05)');
+                    ctx.fillStyle = foldGrad;
+                    ctx.fill();
+
+                    ctx.restore();
+                } else {
+                    if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0);
+                    drawPageContent(ctx, topIdx);
+                }
+            }
+            ctx.restore();
+        }
+
+        function renderLoop() {
+            if (flip.animating) {
+                const fx = -flip.tension * (flip.p.x - flip.target.x);
+                const fy = -flip.tension * (flip.p.y - flip.target.y);
+                flip.v.x += fx - flip.damping * flip.v.x;
+                flip.v.y += fy - flip.damping * flip.v.y;
+                flip.p.x += flip.v.x;
+                flip.p.y += flip.v.y;
+
+                if (Math.hypot(flip.p.x - flip.target.x, flip.p.y - flip.target.y) < 0.5 &&
+                    Math.hypot(flip.v.x, flip.v.y) < 0.5) {
+                    
+                    flip.animating = false;
+                    flip.p = { x: flip.target.x, y: flip.target.y };
+                    flip.v = {x:0, y:0};
+
+                    let isFlipped = false;
+                    if (flip.dir === 1 && flip.target.x < (isSinglePageMode ? 0 : -pageW/2)) isFlipped = true;
+                    if (flip.dir === -1 && flip.target.x > (isSinglePageMode ? pageW : pageW/2)) isFlipped = true;
+
+                    if (isFlipped) currentSpread += flip.dir;
+                    flip.active = false;
+                    updateNavButtons();
+                }
+            }
+            if (isImagesLoaded) draw();
+            requestAnimationFrame(renderLoop);
+        }
+
+        function getLocalPointer(e) {
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - spineX, y: clientY - paddingY };
+        }
+
+        let dragStart = { x:0, y:0 };
+
+        function handlePointerDown(e) {
+            // 防止點擊輸入框時觸發翻頁
+            if (e.target.id === 'page-input') return;
+
+            if (flip.animating) return;
+            let local = getLocalPointer(e);
+            let corner;
+
+            if (isSinglePageMode) {
+                if (local.y > pageH * 0.7) {
+                    if (local.x > pageW * 0.7 && currentSpread < maxIndex) { corner = { x: pageW, y: pageH }; flip.dir = 1; }
+                    else if (local.x < pageW * 0.3 && currentSpread > 0) { corner = { x: 0, y: pageH }; flip.dir = -1; }
+                }
+            } else {
+                if (local.y > pageH * 0.7) {
+                    if (local.x > pageW * 0.5 && currentSpread < maxIndex) { corner = { x: pageW, y: pageH }; flip.dir = 1; }
+                    else if (local.x < -pageW * 0.5 && currentSpread > 0) { corner = { x: -pageW, y: pageH }; flip.dir = -1; }
+                }
+            }
+
+            if (corner) {
+                flip.active = true;
+                flip.dragging = true;
+                flip.p = { x: corner.x, y: corner.y };
+                flip.target = { x: corner.x - flip.dir * 30, y: corner.y - 10 };
+                flip.animating = true;
+                dragStart = local;
+                canvas.style.cursor = 'grabbing';
+                e.preventDefault();
+            }
+        }
+
+        function handlePointerMove(e) {
+            let local = getLocalPointer(e);
+            if (flip.dragging) {
+                flip.p = local;
+                flip.animating = false;
+                e.preventDefault();
+            } else {
+                let isHover = false;
+                if (isSinglePageMode) {
+                    if (local.y > pageH*0.7 && (local.x > pageW*0.7 || local.x < pageW*0.3)) isHover = true;
+                } else {
+                     if (local.y > pageH*0.7 && (local.x > pageW*0.5 || local.x < -pageW*0.5)) isHover = true;
+                }
+                canvas.style.cursor = isHover ? 'grab' : 'default';
+            }
+        }
+
+        function handlePointerUp(e) {
+            if (flip.dragging) {
+                flip.dragging = false;
+                flip.animating = true;
+                canvas.style.cursor = 'grab';
+
+                let dist = Math.hypot(flip.p.x - dragStart.x, flip.p.y - dragStart.y);
+                if (dist < 20) {
+                    setFlipTarget(flip.dir, true);
+                } else {
+                    let titleOver = false;
+                    if (flip.dir === 1 && flip.p.x < (isSinglePageMode ? pageW/2 : 0)) titleOver = true;
+                    if (flip.dir === -1 && flip.p.x > (isSinglePageMode ? pageW/2 : 0)) titleOver = true;
+                    setFlipTarget(flip.dir, titleOver);
+                }
+            }
+        }
+
+        function setFlipTarget(dir, isSuccess) {
+             let finalX, finalY = flip.p.y; 
+             if (isSuccess) {
+                 if (isSinglePageMode) finalX = dir === 1 ? -pageW * 0.8 : pageW * 1.8;
+                 else finalX = dir === 1 ? -pageW * 1.5 : pageW * 1.5;
+             } else {
+                 finalY = pageH;
+                 if (isSinglePageMode) finalX = dir === 1 ? pageW : 0;
+                 else finalX = dir === 1 ? pageW : -pageW;
+             }
+             flip.target = { x: finalX, y: finalY };
+        }
+
+        canvas.addEventListener('mousedown', handlePointerDown);
+        canvas.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+        canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+        canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+        window.addEventListener('touchend', handlePointerUp);
+        window.addEventListener('touchcancel', handlePointerUp);
+
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+
+        // 新增/更新：維護頁數狀態與按鈕
+        function updateNavButtons() {
+            prevBtn.disabled = currentSpread === 0;
+            nextBtn.disabled = currentSpread >= maxIndex;
+            
+            if (imageUrls.length > 0) {
+                let displayPage;
+                if (isSinglePageMode) {
+                    displayPage = currentSpread + 1;
+                } else {
+                    displayPage = currentSpread === 0 ? 1 : Math.min(imageUrls.length, currentSpread * 2);
+                }
+                pageInput.value = displayPage;
+            }
+        }
+
+        // 新增：處理輸入框跳轉邏輯
+        pageInput.addEventListener('change', (e) => {
+            let targetPage = parseInt(e.target.value);
+            const total = imageUrls.length;
+            
+            if (isNaN(targetPage) || targetPage < 1) targetPage = 1;
+            if (targetPage > total) targetPage = total;
+            
+            let targetSpread;
+            if (isSinglePageMode) {
+                targetSpread = targetPage - 1;
+            } else {
+                targetSpread = Math.floor(targetPage / 2);
+            }
+            
+            // 確保不超過最大跨頁
+            targetSpread = Math.min(targetSpread, maxIndex);
+
+            if (targetSpread !== currentSpread) {
+                currentSpread = targetSpread;
+                updateNavButtons();
+                if (isImagesLoaded) draw();
+            } else {
+                updateNavButtons(); // 若無變動，重置為有效數字
+            }
+        });
+
+        function triggerButtonFlip(dir) {
+            if (flip.animating || flip.dragging) return;
+            let startX = isSinglePageMode ? (dir === 1 ? pageW : 0) : (dir === 1 ? pageW : -pageW);
+            flip.active = true;
+            flip.dragging = false;
+            flip.animating = true;
+            flip.dir = dir;
+            毛p = { x: startX, y: pageH };
+            flip.v = { x: 0, y: 0 };
+            setFlipTarget(dir, true);
+        }
+
+        nextBtn.addEventListener('click', () => triggerButtonFlip(1));
+        prevBtn.addEventListener('click', () => triggerButtonFlip(-1));
+
+    </script>
+</body>
+</html>
