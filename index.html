@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Canvas 真實物理翻頁書 (整合預覽與工具列)</title>
+    <title>Canvas 擬真物理翻頁書 (修復版)</title>
     <style>
         body {
-            background-color: #333; /* 配合工具列改為較深色的背景，突顯書本 */
+            background-color: #333;
             margin: 0;
             padding: 0;
             overflow: hidden;
@@ -20,7 +20,7 @@
         .book-container {
             position: relative;
             width: 100%;
-            height: calc(100% - 50px); /* 預留底部工具列空間 */
+            height: calc(100% - 50px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -29,7 +29,7 @@
 
         canvas {
             display: block;
-            filter: drop-shadow(0 15px 25px rgba(0,0,0,0.4));
+            filter: drop-shadow(0 15px 30px rgba(0,0,0,0.5));
         }
 
         #loading {
@@ -83,22 +83,23 @@
         .left-btn { left: 30px; }
         .right-btn { right: 30px; }
 
-        /* --- 新增：底部工具列 (仿 File 1) --- */
+        /* --- 底部工具列 --- */
         .toolbar {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
             height: 50px;
-            background: rgba(45, 45, 45, 0.95);
-            backdrop-filter: blur(10px);
+            background: rgba(30, 30, 30, 0.95);
             display: flex;
             align-items: center;
-            padding: 0 20px;
+            /* 左側預留 60px 邊距，避開 CodePen 等平台的左下角懸浮按鈕 */
+            padding: 0 20px 0 60px;
             box-sizing: border-box;
             z-index: 100;
             color: #ccc;
             gap: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
 
         .tool-btn {
@@ -111,11 +112,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: color 0.2s;
+            transition: color 0.2s, transform 0.2s;
             outline: none;
         }
         .tool-btn:hover, .tool-btn.active {
             color: #fff;
+            transform: scale(1.1);
         }
 
         .page-info {
@@ -125,8 +127,11 @@
             text-align: center;
             font-family: monospace;
             cursor: pointer;
+            background: rgba(255,255,255,0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
         }
-        .page-info:hover { color: #fff; }
+        .page-info:hover { background: rgba(255,255,255,0.2); color: #fff; }
 
         .slider-container {
             flex-grow: 1;
@@ -142,109 +147,102 @@
         }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            height: 14px;
-            width: 14px;
+            height: 16px;
+            width: 16px;
             border-radius: 50%;
             background: #fff;
             cursor: pointer;
-            margin-top: -5px;
+            margin-top: -6px;
             box-shadow: 0 0 5px rgba(0,0,0,0.5);
         }
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
             height: 4px;
             cursor: pointer;
-            background: #666;
+            background: #555;
             border-radius: 2px;
         }
 
-        /* --- 新增：全部頁面預覽 (網格) --- */
-        .thumbnail-overlay {
+        /* --- 水平縮圖列 --- */
+        .thumb-bar {
             position: absolute;
-            top: 0;
+            bottom: 50px;
             left: 0;
             width: 100%;
-            height: calc(100% - 50px);
-            background: rgba(30, 30, 30, 0.98);
+            height: 120px;
+            background: rgba(20, 20, 20, 0.9);
             z-index: 90;
-            display: none;
-            flex-direction: column;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .thumbnail-overlay.active {
             display: flex;
-            opacity: 1;
-        }
-        
-        .thumb-header {
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
             align-items: center;
-            color: white;
-            background: rgba(0,0,0,0.5);
-            font-size: 16px;
-            font-weight: bold;
+            padding: 10px;
+            box-sizing: border-box;
+            overflow-x: auto;
+            overflow-y: hidden;
+            gap: 10px;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
         
-        .close-thumb-btn {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
+        .thumb-bar.active {
+            transform: translateY(0);
         }
 
-        .thumb-grid-container {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .thumb-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .thumb-bar::-webkit-scrollbar { height: 8px; }
+        .thumb-bar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .thumb-bar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
+        .thumb-bar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.5); }
 
         .thumb-item {
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            transition: transform 0.2s;
-        }
-        .thumb-item:hover {
-            transform: translateY(-5px) scale(1.02);
-        }
-        .thumb-img {
-            width: 100%;
+            height: 100%;
             aspect-ratio: 1 / 1.414;
             background: #fff;
-            object-fit: cover;
+            flex-shrink: 0;
+            cursor: pointer;
+            position: relative;
             border: 2px solid transparent;
-            border-radius: 4px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.2s, border-color 0.2s;
+            border-radius: 2px;
+            overflow: hidden;
         }
-        .thumb-item.current .thumb-img {
+        
+        .thumb-item:hover {
+            transform: translateY(-2px);
+            border-color: #888;
+        }
+        
+        .thumb-item.current {
             border-color: #4CAF50;
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+            z-index: 2;
         }
-        .thumb-label {
-            color: #ccc;
-            margin-top: 8px;
-            font-size: 13px;
+
+        .thumb-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .thumb-page-num {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            text-align: center;
+            font-size: 11px;
+            padding: 2px 0;
         }
 
         @media (max-width: 768px) {
-            .toolbar { padding: 0 10px; gap: 8px; }
+            .toolbar { padding: 0 10px 0 50px; gap: 8px; }
             .tool-btn { font-size: 16px; }
             .nav-btn { width: 40px; height: 40px; font-size: 20px; }
             .left-btn { left: 10px; }
             .right-btn { right: 10px; }
-            .thumb-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
         }
     </style>
 </head>
@@ -257,25 +255,14 @@
         <canvas id="flipbook"></canvas>
     </div>
 
-    <!-- 全部頁面預覽遮罩 -->
-    <div class="thumbnail-overlay" id="thumb-overlay">
-        <div class="thumb-header">
-            <span>全部頁面預覽</span>
-            <button class="close-thumb-btn" id="close-thumb-btn">✕</button>
-        </div>
-        <div class="thumb-grid-container">
-            <div class="thumb-grid" id="thumb-grid">
-                <!-- 縮圖將由 JS 動態生成 -->
-            </div>
-        </div>
-    </div>
+    <!-- 水平縮圖列 -->
+    <div class="thumb-bar" id="thumb-bar"></div>
 
     <!-- 底部工具列 -->
     <div class="toolbar" id="toolbar" style="display: none;">
         <button class="tool-btn" id="btn-zoom-in" title="放大">➕</button>
         <button class="tool-btn" id="btn-zoom-out" title="縮小">➖</button>
-        <button class="tool-btn" id="btn-grid" title="縮圖預覽">⊞</button>
-        <button class="tool-btn" id="btn-sound" title="音效開啟/關閉">🔊</button>
+        <button class="tool-btn" id="btn-grid" title="縮圖列">⊞</button>
         <button class="tool-btn" id="btn-share" title="分享">🔗</button>
         
         <div class="page-info" id="page-display" title="點擊輸入頁數">0 / 0</div>
@@ -292,12 +279,10 @@
         const ctx = canvas.getContext('2d', { alpha: false }); 
         const bookWrap = document.getElementById('book-wrap');
         
-        // 工具列與預覽 DOM
         const toolbar = document.getElementById('toolbar');
         const pageDisplay = document.getElementById('page-display');
         const pageSlider = document.getElementById('page-slider');
-        const thumbOverlay = document.getElementById('thumb-overlay');
-        const thumbGrid = document.getElementById('thumb-grid');
+        const thumbBar = document.getElementById('thumb-bar');
         
         let canvasW, canvasH, paddingX, paddingY, bookW, bookH, pageW, pageH, spineX;
         let currentSpread = 0; 
@@ -309,7 +294,6 @@
         const images = [];
         let loadedCount = 0;
         let isImagesLoaded = false;
-        let playSound = true;
 
         const flip = {
             active: false, dragging: false, animating: false, dir: 1, 
@@ -319,7 +303,6 @@
 
         function resizeCanvas() {
             const dpr = window.devicePixelRatio || 1;
-            // 扣除底部工具列的高度 50px
             const containerWidth = window.innerWidth;
             const containerHeight = window.innerHeight - 50; 
 
@@ -373,9 +356,7 @@
             }
             pageH = bookH;
             
-            flip.active = false;
-            flip.animating = false;
-            flip.dragging = false;
+            flip.active = false; flip.animating = false; flip.dragging = false;
             
             updateUI();
             if (isImagesLoaded) draw();
@@ -388,13 +369,11 @@
             loadedCount++;
             if (loadedCount === imageUrls.length) {
                 document.getElementById('loading').style.display = 'none';
-                toolbar.style.display = 'flex'; // 顯示工具列
+                toolbar.style.display = 'flex';
                 isImagesLoaded = true;
-                
-                // 設定拉桿最大值
                 pageSlider.max = imageUrls.length;
                 
-                generateThumbnails(); // 產生縮圖
+                generateThumbnails(); 
                 resizeCanvas();
                 requestAnimationFrame(renderLoop);
             }
@@ -473,34 +452,35 @@
                     else { drawH = availH; drawW = availH * imgAspect; }
                     
                     let offsetX = 0;
-                    if (!isSinglePageMode) {
-                        offsetX = (idx % 2 !== 0) ? -(pageW * 0.005) : (pageW * 0.005);
-                    }
+                    if (!isSinglePageMode) offsetX = (idx % 2 !== 0) ? -(pageW * 0.005) : (pageW * 0.005);
+                    
                     let drawX = margin + (availW - drawW) / 2 + offsetX;
                     let drawY = margin + (availH - drawH) / 2;
                     ctx.drawImage(img, drawX, drawY, drawW, drawH);
                 }
             }
-            ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 1; ctx.strokeRect(0, 0, pageW, pageH);
+            
+            ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 1; ctx.strokeRect(0, 0, pageW, pageH);
             
             if (!isSinglePageMode) {
                  if (idx % 2 !== 0) {
-                     let spineShadow = ctx.createLinearGradient(pageW - 25, 0, pageW, 0);
-                     spineShadow.addColorStop(0, 'rgba(0,0,0,0)'); spineShadow.addColorStop(1, 'rgba(0,0,0,0.12)');
-                     ctx.fillStyle = spineShadow; ctx.fillRect(pageW - 25, 0, 25, pageH);
+                     let spineShadow = ctx.createLinearGradient(pageW - 30, 0, pageW, 0);
+                     spineShadow.addColorStop(0, 'rgba(0,0,0,0)'); spineShadow.addColorStop(1, 'rgba(0,0,0,0.18)');
+                     ctx.fillStyle = spineShadow; ctx.fillRect(pageW - 30, 0, 30, pageH);
                  } else {
-                     let spineShadow = ctx.createLinearGradient(0, 0, 25, 0);
-                     spineShadow.addColorStop(0, 'rgba(0,0,0,0.12)'); spineShadow.addColorStop(1, 'rgba(0,0,0,0)');
-                     ctx.fillStyle = spineShadow; ctx.fillRect(0, 0, 25, pageH);
+                     let spineShadow = ctx.createLinearGradient(0, 0, 30, 0);
+                     spineShadow.addColorStop(0, 'rgba(0,0,0,0.18)'); spineShadow.addColorStop(1, 'rgba(0,0,0,0)');
+                     ctx.fillStyle = spineShadow; ctx.fillRect(0, 0, 30, pageH);
                  }
             }
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvasW, canvasH);
+            
             ctx.save(); ctx.translate(paddingX, paddingY);
-            ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = 25; ctx.shadowOffsetY = 10; ctx.fillRect(0, 0, bookW, bookH);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.shadowColor = 'rgba(0,0,0,0.6)';
+            ctx.shadowBlur = 30; ctx.shadowOffsetY = 15; ctx.fillRect(0, 0, bookW, bookH);
             ctx.restore();
 
             ctx.save(); ctx.translate(spineX, paddingY);
@@ -523,6 +503,22 @@
                     else { topIdx = leftIdx; bottomIdx = leftIdx - 2; peelCorner = { x: -pageW, y: pageH }; }
                 }
                 
+                // ★ 修復：翻頁時畫出靜止不動的那側頁面
+                if (!isSinglePageMode) {
+                    if (isFlippingRight) {
+                        // 往左翻（掀起右頁），左頁保持不動
+                        if (leftIdx >= 0) {
+                            ctx.save(); ctx.translate(-pageW, 0); drawPageContent(ctx, leftIdx); ctx.restore();
+                        }
+                    } else {
+                        // 往右翻（掀起左頁），右頁保持不動
+                        if (rightIdx <= imageUrls.length) {
+                            drawPageContent(ctx, rightIdx);
+                        }
+                    }
+                }
+
+                // 畫底層頁面 (翻頁後即將露出的新頁面)
                 ctx.save();
                 if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0);
                 drawPageContent(ctx, bottomIdx); ctx.restore();
@@ -544,12 +540,15 @@
                     drawPageContent(ctx, topIdx); ctx.restore();
 
                     ctx.save(); tracePoly(ctx, polyFold); ctx.clip();
-                    let shadowGrad = ctx.createLinearGradient(M.x, M.y, M.x - n.x*100, M.y - n.y*100);
-                    shadowGrad.addColorStop(0, 'rgba(0,0,0,0.5)'); shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                    let shadowGrad = ctx.createLinearGradient(M.x, M.y, M.x - n.x*120, M.y - n.y*120);
+                    shadowGrad.addColorStop(0, 'rgba(0,0,0,0.6)');
+                    shadowGrad.addColorStop(0.2, 'rgba(0,0,0,0.15)');
+                    shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
                     ctx.fillStyle = shadowGrad; ctx.fillRect(isSinglePageMode || isFlippingRight ? 0 : -pageW, 0, pageW, pageH); ctx.restore();
 
                     ctx.save(); let t = { x: -n.y, y: n.x }; let alpha = Math.atan2(t.y, t.x);
                     ctx.translate(M.x, M.y); ctx.rotate(alpha); ctx.scale(1, -1); ctx.rotate(-alpha); ctx.translate(-M.x, -M.y);
+                    
                     tracePoly(ctx, polyFold); ctx.clip();
                     let backIdx = flip.dir === 1 ? topIdx + 1 : (isSinglePageMode ? topIdx : topIdx - 1);
                     ctx.save();
@@ -557,9 +556,21 @@
                     else { ctx.scale(-1, 1); }
                     drawPageContent(ctx, backIdx); ctx.restore();
                     
-                    let foldGrad = ctx.createLinearGradient(M.x, M.y, M.x + n.x*50, M.y + n.y*50);
-                    foldGrad.addColorStop(0, 'rgba(0,0,0,0.25)'); foldGrad.addColorStop(0.5, 'rgba(255,255,255,0.4)'); foldGrad.addColorStop(1, 'rgba(0,0,0,0.05)');
+                    let foldGrad = ctx.createLinearGradient(M.x, M.y, M.x + n.x*100, M.y + n.y*100);
+                    foldGrad.addColorStop(0, 'rgba(0,0,0,0.5)');        
+                    foldGrad.addColorStop(0.08, 'rgba(255,255,255,0.7)'); 
+                    foldGrad.addColorStop(0.3, 'rgba(255,255,255,0.1)'); 
+                    foldGrad.addColorStop(1, 'rgba(0,0,0,0.15)');       
                     ctx.fillStyle = foldGrad; ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.moveTo(polyFold[0].x, polyFold[0].y);
+                    for(let i=1; i<polyFold.length; i++) ctx.lineTo(polyFold[i].x, polyFold[i].y);
+                    ctx.closePath();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
                     ctx.restore();
                 } else {
                     if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0);
@@ -589,25 +600,23 @@
             requestAnimationFrame(renderLoop);
         }
 
-        // 修改座標擷取以適應縮放
         function getLocalPointer(e) {
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
             let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            // 處理 transform scale 的座標系
             let rect = canvas.getBoundingClientRect();
-            let scaleX = canvas.width / rect.width;
-            let scaleY = canvas.height / rect.height;
-            
-            let x = (clientX - rect.left) * scaleX - spineX;
-            let y = (clientY - rect.top) * scaleY - paddingY;
+            let scaleX = canvas.width / rect.width; let scaleY = canvas.height / rect.height;
+            let x = (clientX - rect.left) * scaleX - spineX; let y = (clientY - rect.top) * scaleY - paddingY;
             return { x, y };
         }
 
         let dragStart = { x:0, y:0 };
         function handlePointerDown(e) {
-            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('.thumb-bar') || e.target.closest('.toolbar')) return;
             if (flip.animating) return;
+            
+            thumbBar.classList.remove('active'); 
+            document.getElementById('btn-grid').classList.remove('active');
+
             let local = getLocalPointer(e); let corner;
             if (isSinglePageMode) {
                 if (local.y > pageH * 0.7) {
@@ -666,17 +675,14 @@
         canvas.addEventListener('touchstart', handlePointerDown, { passive: false }); canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
         window.addEventListener('touchend', handlePointerUp); window.addEventListener('touchcancel', handlePointerUp);
 
-        // --- UI 更新與綁定 ---
         const prevBtn = document.getElementById('prev-btn');
         const nextBtn = document.getElementById('next-btn');
 
         function updateUI() {
-            // 左右按鈕
             prevBtn.disabled = currentSpread === 0;
             nextBtn.disabled = currentSpread >= maxIndex;
             
             if (imageUrls.length > 0) {
-                // 更新頁碼文字 (如: "14-15 / 75")
                 let displayStr = "";
                 let actualPageBase = isSinglePageMode ? currentSpread + 1 : currentSpread * 2;
                 
@@ -689,24 +695,24 @@
                 }
                 pageDisplay.innerText = displayStr;
 
-                // 更新拉桿數值 (對齊左頁或當前頁)
                 let sliderVal = isSinglePageMode ? currentSpread + 1 : (currentSpread === 0 ? 1 : currentSpread * 2);
                 pageSlider.value = sliderVal;
 
-                // 標記縮圖網格的目前頁面
                 document.querySelectorAll('.thumb-item').forEach(el => el.classList.remove('current'));
                 let currentThumb = document.getElementById(`thumb-${sliderVal-1}`);
                 if (currentThumb) {
                     currentThumb.classList.add('current');
-                    // 自動滾動到該縮圖
-                    if(thumbOverlay.classList.contains('active')) {
-                        currentThumb.scrollIntoView({ behavior: "smooth", block: "center" });
+                    if (thumbBar.classList.contains('active')) {
+                        currentThumb.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
                     }
                 }
             }
         }
 
         function triggerButtonFlip(dir) {
+            thumbBar.classList.remove('active');
+            document.getElementById('btn-grid').classList.remove('active');
+            
             if (flip.animating || flip.dragging) return;
             let startX = isSinglePageMode ? (dir === 1 ? pageW : 0) : (dir === 1 ? pageW : -pageW);
             flip.active = true; flip.dragging = false; flip.animating = true; flip.dir = dir;
@@ -714,10 +720,7 @@
         }
         nextBtn.addEventListener('click', () => triggerButtonFlip(1));
         prevBtn.addEventListener('click', () => triggerButtonFlip(-1));
-
-        // --- 工具列事件 ---
         
-        // 1. 滑桿拖動跳頁
         pageSlider.addEventListener('input', (e) => {
             let targetPage = parseInt(e.target.value);
             let targetSpread = isSinglePageMode ? targetPage - 1 : Math.floor(targetPage / 2);
@@ -730,47 +733,44 @@
             }
         });
 
-        // 2. 縮圖預覽功能
         function generateThumbnails() {
-            thumbGrid.innerHTML = '';
+            thumbBar.innerHTML = '';
             imageUrls.forEach((url, index) => {
                 const item = document.createElement('div');
                 item.className = 'thumb-item';
                 item.id = `thumb-${index}`;
                 item.innerHTML = `
                     <img src="${url}" class="thumb-img" loading="lazy">
-                    <div class="thumb-label">第 ${index + 1} 頁</div>
+                    <div class="thumb-page-num">${index + 1}</div>
                 `;
                 item.addEventListener('click', () => {
                     let targetSpread = isSinglePageMode ? index : Math.floor((index + 1) / 2);
                     currentSpread = Math.min(Math.max(0, targetSpread), maxIndex);
-                    thumbOverlay.classList.remove('active');
                     updateUI();
                     if (isImagesLoaded) draw();
                 });
-                thumbGrid.appendChild(item);
+                thumbBar.appendChild(item);
             });
         }
         
-        document.getElementById('btn-grid').addEventListener('click', () => {
-            thumbOverlay.classList.add('active');
-            updateUI(); // 觸發滾動到目前頁面
-        });
-        document.getElementById('close-thumb-btn').addEventListener('click', () => {
-            thumbOverlay.classList.remove('active');
+        document.getElementById('btn-grid').addEventListener('click', function() {
+            thumbBar.classList.toggle('active');
+            this.classList.toggle('active');
+            if (thumbBar.classList.contains('active')) {
+                updateUI();
+            }
         });
 
-        // 3. 畫面縮放功能
         document.getElementById('btn-zoom-in').addEventListener('click', () => {
             if(currentZoom < 2.5) currentZoom += 0.25;
             bookWrap.style.transform = `scale(${currentZoom})`;
         });
+        
         document.getElementById('btn-zoom-out').addEventListener('click', () => {
             if(currentZoom > 0.5) currentZoom -= 0.25;
             bookWrap.style.transform = `scale(${currentZoom})`;
         });
 
-        // 4. 全螢幕功能
         document.getElementById('btn-fullscreen').addEventListener('click', () => {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(err => {
@@ -781,7 +781,6 @@
             }
         });
 
-        // 5. 點擊文字輸入跳頁
         pageDisplay.addEventListener('click', () => {
             let p = prompt(`輸入欲跳轉的頁數 (1 - ${imageUrls.length}):`);
             if (p) {
@@ -793,14 +792,8 @@
             }
         });
 
-        // 音效與分享 (視覺佔位，可後續擴充)
-        document.getElementById('btn-sound').addEventListener('click', function() {
-            playSound = !playSound;
-            this.innerText = playSound ? '🔊' : '🔇';
-            this.classList.toggle('active', !playSound);
-        });
         document.getElementById('btn-share').addEventListener('click', () => {
-            alert('您可以在此處串接分享連結或 Navigator.share API');
+            alert('此處可以串接您的分享連結或是 Web Share API');
         });
 
     </script>
