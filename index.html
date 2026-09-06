@@ -6,210 +6,83 @@
     <title>彰化縣英語國際村成果電子書</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            background-color: #333;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            width: 100vw;
-            height: 100vh;
-            font-family: "Inter", "Microsoft JhengHei", sans-serif;
-            color: #333;
-            touch-action: none; 
+        body { 
+            background-color: #262626; margin: 0; padding: 0; overflow: hidden; width: 100vw; height: 100vh; 
+            font-family: "Inter", "Microsoft JhengHei", sans-serif; touch-action: none; user-select: none; -webkit-user-select: none;
         }
-
-        .book-container {
-            position: relative;
-            width: 100%;
-            height: calc(100% - 50px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        canvas {
-            display: block;
-            filter: drop-shadow(0 15px 30px rgba(0,0,0,0.5));
-        }
-
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 16px;
-            font-weight: bold;
-            color: #555;
-            background: rgba(255,255,255,0.95);
-            padding: 12px 24px;
-            border-radius: 30px;
-            pointer-events: none;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            z-index: 20;
-        }
-
-        .nav-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            font-size: 24px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            user-select: none;
-            outline: none;
-        }
-        @media (hover: hover) {
-            .nav-btn:hover { background: rgba(255, 255, 255, 0.9); color: #333; }
-        }
+        .book-container { position: relative; width: 100%; height: calc(100% - 50px); display: flex; align-items: center; justify-content: center; }
+        canvas { display: block; filter: drop-shadow(0 25px 45px rgba(0,0,0,0.6)); cursor: default; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 16px; font-weight: bold; color: #555; background: rgba(255,255,255,0.95); padding: 12px 24px; border-radius: 30px; pointer-events: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 20; }
+        .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 50px; height: 50px; border-radius: 50%; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.3); font-size: 24px; color: white; cursor: pointer; transition: all 0.3s; z-index: 10; display: flex; align-items: center; justify-content: center; outline: none; }
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.85); color: #333; }
         .nav-btn:disabled { opacity: 0; pointer-events: none; }
-        .left-btn { left: 30px; }
-        .right-btn { right: 30px; }
+        .left-btn { left: 30px; } .right-btn { right: 30px; }
+        /* 修改：將原本的 padding: 0 20px 0 60px 改為 padding: 0 15px */
+.toolbar { position: absolute; bottom: 0; left: 0; width: 100%; height: 50px; background: rgba(25, 25, 25, 0.95); display: flex; align-items: center; padding: 0 70px; /* ★ 修改這裡：加大左右內距 */ box-sizing: border-box; z-index: 100; color: #ccc; gap: 15px; border-top: 1px solid rgba(255,255,255,0.05); }
 
-        .toolbar {
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 50px;
-            background: rgba(30, 30, 30, 0.95); display: flex; align-items: center;
-            padding: 0 20px 0 60px; box-sizing: border-box; z-index: 100;
-            color: #ccc; gap: 15px; border-top: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .tool-btn {
-            background: none; border: none; color: #ccc; font-size: 18px;
-            cursor: pointer; padding: 5px; display: flex; align-items: center;
-            justify-content: center; transition: color 0.2s, transform 0.2s; outline: none;
-        }
+/* 新增：工具列按鈕的禁用狀態 (防止首頁點擊上一頁) */
+.tool-btn:disabled { opacity: 0.3; pointer-events: none; }
+        .tool-btn { background: none; border: none; color: #ccc; font-size: 18px; cursor: pointer; padding: 5px; transition: color 0.2s, transform 0.2s; outline: none; border-radius: 4px; }
         .tool-btn:hover, .tool-btn.active { color: #fff; transform: scale(1.1); }
-
-        .page-info {
-            font-size: 14px; white-space: nowrap; min-width: 65px; text-align: center;
-            font-family: monospace; cursor: pointer; background: rgba(255,255,255,0.1);
-            padding: 4px 8px; border-radius: 4px;
-        }
+        .page-info { font-size: 14px; white-space: nowrap; min-width: 65px; text-align: center; font-family: monospace; cursor: pointer; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; transition: background 0.2s; }
         .page-info:hover { background: rgba(255,255,255,0.2); color: #fff; }
-
         .slider-container { flex-grow: 1; display: flex; align-items: center; padding: 0 10px; }
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
-            background: #fff; cursor: pointer; margin-top: -6px; box-shadow: 0 0 5px rgba(0,0,0,0.5);
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 4px; cursor: pointer; background: #555; border-radius: 2px;
-        }
-
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #fff; cursor: pointer; margin-top: -6px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #555; border-radius: 2px; }
         .share-wrapper { position: relative; display: flex; align-items: center; }
-        .share-popup {
-            position: absolute; bottom: 45px; left: -100px;
-            background: #4372b6; padding: 15px; border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 15px;
-            opacity: 0; visibility: hidden; transform: translateY(10px);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); width: max-content; cursor: default;
-        }
+        .share-popup { position: absolute; bottom: 50px; left: -100px; background: #365e9d; padding: 15px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 15px; opacity: 0; visibility: hidden; transform: translateY(10px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); width: max-content; }
         .share-popup.active { opacity: 1; visibility: visible; transform: translateY(0); }
-        .share-popup::after {
-            content: ''; position: absolute; bottom: -10px; left: 105px;
-            border-width: 10px 10px 0 10px; border-style: solid; border-color: #4372b6 transparent transparent transparent;
-        }
-        .share-top { display: flex; align-items: stretch; gap: 15px; }
-        .qr-box {
-            background: #fff; padding: 8px; border-radius: 4px;
-            display: flex; flex-direction: column; align-items: center; gap: 5px;
-        }
-        .qr-box img { width: 100px; height: 100px; display: block; }
-        .qr-box span { font-size: 11px; color: #999; font-weight: bold; }
-        .share-divider { width: 1px; background: rgba(255,255,255,0.3); }
+        .share-popup::after { content: ''; position: absolute; bottom: -8px; left: 105px; border-width: 8px 8px 0 8px; border-style: solid; border-color: #365e9d transparent transparent transparent; }
+        .share-top { display: flex; gap: 15px; }
+        .qr-box { background: #fff; padding: 8px; border-radius: 4px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .qr-box img { width: 100px; height: 100px; }
+        .qr-box span { font-size: 11px; color: #888; font-weight: bold; }
+        .share-divider { width: 1px; background: rgba(255,255,255,0.25); }
         .social-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: center; }
-        .social-btn {
-            width: 32px; height: 32px; border-radius: 50%; border: none; color: white;
-            display: flex; align-items: center; justify-content: center; font-size: 16px;
-            cursor: pointer; transition: transform 0.2s; text-decoration: none;
-        }
+        .social-btn { width: 32px; height: 32px; border-radius: 50%; border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; transition: transform 0.2s; }
         .social-btn:hover { transform: scale(1.1); }
-        .bg-fb { background: #1877f2; } .bg-x { background: #000000; } .bg-line { background: #00c300; }
-        .bg-in { background: #0a66c2; } .bg-pin { background: #e60023; } .bg-email { background: #c71610; }
-        .bg-more { background: #ea4335; }
-        .share-bottom input {
-            width: 100%; box-sizing: border-box; padding: 8px 10px; border: none;
-            border-radius: 2px; font-size: 12px; color: #555; outline: none;
-        }
-
-        .thumb-bar {
-            position: absolute; bottom: 50px; left: 0; width: 100%; height: 120px;
-            background: rgba(20, 20, 20, 0.9); z-index: 90; display: flex; align-items: center;
-            padding: 10px; box-sizing: border-box; overflow-x: auto; overflow-y: hidden; gap: 10px;
-            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
+        .bg-fb { background: #1877f2; } .bg-x { background: #000000; } .bg-line { background: #00c300; } .bg-in { background: #0a66c2; } .bg-pin { background: #e60023; } .bg-email { background: #c71610; } .bg-more { background: #ea4335; }
+        .share-bottom input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: none; border-radius: 4px; font-size: 12px; outline: none; cursor: pointer; background: #fff; }
+        .thumb-bar { position: absolute; bottom: 50px; left: 0; width: 100%; height: 120px; background: rgba(20, 20, 20, 0.94); z-index: 90; display: flex; align-items: center; padding: 10px 15px; box-sizing: border-box; overflow-x: auto; gap: 12px; transform: translateY(100%); transition: transform 0.3s; border-top: 1px solid rgba(255,255,255,0.1); }
         .thumb-bar.active { transform: translateY(0); }
-        .thumb-bar::-webkit-scrollbar { height: 8px; }
-        .thumb-bar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
-        .thumb-bar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
-        
-        .thumb-item {
-            height: 100%; aspect-ratio: 1 / 1.414; background: #222; flex-shrink: 0; cursor: pointer;
-            position: relative; border: 2px solid transparent; transition: transform 0.2s, border-color 0.2s;
-            border-radius: 2px; overflow: hidden; display: flex; align-items: center; justify-content: center;
-        }
+        .thumb-bar::-webkit-scrollbar { height: 6px; } .thumb-bar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); } .thumb-bar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 3px; }
+        .thumb-item { height: 100%; aspect-ratio: 1 / 1.414; background: #222; flex-shrink: 0; cursor: pointer; position: relative; border: 2px solid transparent; transition: transform 0.2s, border-color 0.2s; border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         .thumb-item:hover { transform: translateY(-2px); border-color: #888; }
         .thumb-item.current { border-color: #4CAF50; transform: scale(1.05); box-shadow: 0 0 10px rgba(76, 175, 80, 0.5); z-index: 2; }
-        
         .thumb-img-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #777; background: #fff; }
-        .thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .thumb-error { color: #dc3545; font-size: 20px; }
-        
-        .thumb-page-num {
-            position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.6);
-            color: #fff; text-align: center; font-size: 11px; padding: 2px 0;
-        }
-
-        @media (max-width: 768px) {
-            .toolbar { padding: 0 10px 0 50px; gap: 8px; }
-            .tool-btn { font-size: 16px; }
-            .nav-btn { width: 40px; height: 40px; font-size: 20px; }
-            .left-btn { left: 10px; } .right-btn { right: 10px; }
-            .share-popup { left: -50px; } .share-popup::after { left: 55px; }
-        }
+        .thumb-img { width: 100%; height: 100%; object-fit: cover; }
+        .thumb-page-num { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7); color: #fff; text-align: center; font-size: 11px; padding: 2px 0; font-family: monospace; }
+        @media (max-width: 768px) { .toolbar { padding: 0 10px; gap: 8px; } .nav-btn { width: 42px; height: 42px; font-size: 20px; } .left-btn { left: 10px; } .right-btn { right: 10px; } .share-popup { left: -50px; } .share-popup::after { left: 55px; } }
     </style>
 </head>
 <body>
 
     <div class="book-container" id="book-wrap">
         <div id="loading"><i class="fas fa-spinner fa-spin"></i> 初始化系統中...</div>
-        <button id="prev-btn" class="nav-btn left-btn" disabled>❮</button>
-        <button id="next-btn" class="nav-btn right-btn" disabled>❯</button>
+        <button id="prev-btn" class="nav-btn left-btn" disabled title="上一頁 (←)">❮</button>
+        <button id="next-btn" class="nav-btn right-btn" disabled title="下一頁 (→)">❯</button>
         <canvas id="flipbook"></canvas>
     </div>
 
     <div class="thumb-bar" id="thumb-bar"></div>
 
     <div class="toolbar" id="toolbar" style="display: none;">
-        <button class="tool-btn" id="btn-zoom-in" title="放大">➕</button>
-        <button class="tool-btn" id="btn-zoom-out" title="縮小">➖</button>
-        <button class="tool-btn" id="btn-grid" title="縮圖列">⊞</button>
-        
+        <!-- 新增：跳到第一頁 (置於最左側) -->
+    <button class="tool-btn" id="btn-first" title="第一頁"><i class="fas fa-backward-step"></i></button>
+    
+    <button class="tool-btn" id="btn-zoom-in" title="放大">➕</button>
+    <button class="tool-btn" id="btn-zoom-out" title="縮小">➖</button>
+        <button class="tool-btn" id="btn-grid" title="縮圖目錄">⊞</button>
         <div class="share-wrapper">
             <button class="tool-btn" id="btn-share" title="分享">🔗</button>
             <div class="share-popup" id="share-popup">
                 <div class="share-top">
-                    <div class="qr-box">
-                        <img id="qr-img" src="" alt="QR Code">
-                        <span>QR Code</span>
-                    </div>
+                    <div class="qr-box"><img id="qr-img" src="" alt="QR"><span>掃描開啟</span></div>
                     <div class="share-divider"></div>
                     <div class="social-grid">
                         <button class="social-btn bg-fb" id="share-fb" title="Facebook"><i class="fab fa-facebook-f"></i></button>
-                        <button class="social-btn bg-x" id="share-x" title="X (Twitter)"><i class="fa-brands fa-x-twitter"></i></button>
+                        <button class="social-btn bg-x" id="share-x" title="X"><i class="fa-brands fa-x-twitter"></i></button>
                         <button class="social-btn bg-line" id="share-line" title="LINE"><i class="fab fa-line"></i></button>
                         <button class="social-btn bg-in" id="share-in" title="LinkedIn"><i class="fab fa-linkedin-in"></i></button>
                         <button class="social-btn bg-pin" id="share-pin" title="Pinterest"><i class="fab fa-pinterest-p"></i></button>
@@ -217,646 +90,661 @@
                         <button class="social-btn bg-more" id="share-more" title="更多分享選項" style="grid-column: span 3;"><i class="fas fa-share-nodes"></i></button>
                     </div>
                 </div>
-                <div class="share-bottom">
-                    <input type="text" id="share-url-input" readonly title="點擊複製網址">
-                </div>
+                <div class="share-bottom"><input type="text" id="share-url-input" readonly title="點擊直接複製網址"></div>
             </div>
         </div>
-        
-        <div class="page-info" id="page-display" title="點擊輸入頁數">0 / 0</div>
-        
-        <div class="slider-container">
-            <input type="range" id="page-slider" min="1" value="1" step="1">
-        </div>
-        
-        <button class="tool-btn" id="btn-fullscreen" title="全螢幕">⛶</button>
-    </div>
+        <div class="page-info" id="page-display" title="點擊輸入頁碼跳頁">0 / 0</div>
+        <div class="slider-container"><input type="range" id="page-slider" min="1" value="1" step="1"></div>
+        <button class="tool-btn" id="btn-fullscreen" title="全螢幕切換">⛶</button>
+    <!-- 新增：跳到最後一頁 (置於最右側) -->
+    <button class="tool-btn" id="btn-last" title="最後一頁"><i class="fas fa-forward-step"></i></button>
+</div>
 
     <script>
         const canvas = document.getElementById('flipbook');
         const ctx = canvas.getContext('2d', { alpha: false }); 
-        
         const toolbar = document.getElementById('toolbar');
         const pageDisplay = document.getElementById('page-display');
         const pageSlider = document.getElementById('page-slider');
         const thumbBar = document.getElementById('thumb-bar');
         
         let canvasW, canvasH, paddingX, paddingY, bookW, bookH, pageW, pageH, spineX;
-        let currentSpread = 0; 
-        let isSinglePageMode = false; 
-        
-        let currentZoom = 1;
-        let panX = 0; let panY = 0;
-        let isPanning = false; let panStart = { x: 0, y: 0 };
-        
-        // ★ 滑動(Swipe)控制狀態
-        let swipeStartGlobal = { x: 0, y: 0, time: 0 };
+        let currentSpread = 0; let isSinglePageMode = false; 
+        let currentZoom = 1; let panX = 0; let panY = 0;
+        let isPanning = false; let panStart = { x: 0, y: 0 }; let dragStart = { x: 0, y: 0 };
+        let swipeStartGlobal = { x: 0, y: 0, time: 0 }; let touchStartDist = 0; let zoomStartVal = 1;
 
-        let imageUrls = [];
-        let maxIndex = 0;
-        let images = [];
-        let imageLoadStatus = []; 
-        let initialLoaded = false;
-        let idleLoadTimer = null;
+        let imageUrls = []; let maxIndex = 0; let images = []; let imageLoadStatus = []; 
+        let initialLoaded = false; let idleLoadTimer = null;
 
         const flip = {
-            active: false, dragging: false, animating: false, dir: 1, 
-            p: { x: 0, y: 0 }, target: { x: 0, y: 0 }, v: { x: 0, y: 0 },
-            tension: 0.25, damping: 0.75
+            active: false, dragging: false, animating: false, 
+            hovering: false, isRetracting: false,
+            dir: 1, p: { x: 0, y: 0 }, target: { x: 0, y: 0 }, v: { x: 0, y: 0 },
+            tension: 0.35, damping: 0.7, cornerBase: { x: 0, y: 0 }
         };
 
         function resizeCanvas() {
             const dpr = window.devicePixelRatio || 1;
             const containerWidth = window.innerWidth;
             const containerHeight = window.innerHeight - 50; 
-
-            canvas.width = containerWidth * dpr;
-            canvas.height = containerHeight * dpr;
-            canvas.style.width = containerWidth + 'px';
-            canvas.style.height = containerHeight + 'px';
-            
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.scale(dpr, dpr);
-
-            canvasW = containerWidth;
-            canvasH = containerHeight;
+            canvas.width = containerWidth * dpr; canvas.height = containerHeight * dpr;
+            canvas.style.width = containerWidth + 'px'; canvas.style.height = containerHeight + 'px';
+            ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
+            canvasW = containerWidth; canvasH = containerHeight;
 
             isSinglePageMode = canvasH > canvasW * 1.05;
-
             let targetPageAspect = 1.414; 
             let referenceImg = images.find(img => img && img.width);
             if (referenceImg) targetPageAspect = referenceImg.height / referenceImg.width;
 
-            let bookAspect;
-            if (isSinglePageMode) {
-                bookAspect = targetPageAspect;
-                maxIndex = imageUrls.length - 1; 
+            let bookAspect = isSinglePageMode ? targetPageAspect : targetPageAspect / 2;
+            maxIndex = isSinglePageMode ? Math.max(0, imageUrls.length - 1) : Math.max(0, Math.ceil(imageUrls.length / 2) - 1);
+
+            const marginRatio = isSinglePageMode ? 0.02 : 0.04; 
+            if (canvasH / canvasW > bookAspect) {
+                bookW = canvasW * (1 - marginRatio * 2); bookH = bookW * bookAspect;
             } else {
-                bookAspect = targetPageAspect / 2;
-                maxIndex = Math.ceil(imageUrls.length / 2) - 1;
+                bookH = canvasH * (1 - marginRatio * 2); bookW = bookH / bookAspect;
             }
 
-            const screenAspect = canvasH / canvasW;
-            const marginRatio = isSinglePageMode ? 0.03 : 0.06; 
-
-            if (screenAspect > bookAspect) {
-                bookW = canvasW * (1 - marginRatio * 2);
-                bookH = bookW * bookAspect;
-            } else {
-                bookH = canvasH * (1 - marginRatio * 2);
-                bookW = bookH / bookAspect;
-            }
-
-            paddingX = (canvasW - bookW) / 2;
-            paddingY = (canvasH - bookH) / 2;
-
-            if (isSinglePageMode) {
-                pageW = bookW; spineX = paddingX; 
-            } else {
-                pageW = bookW / 2; spineX = canvasW / 2; 
-            }
+            paddingX = (canvasW - bookW) / 2; paddingY = (canvasH - bookH) / 2;
+            if (isSinglePageMode) { pageW = bookW; spineX = paddingX; } else { pageW = bookW / 2; spineX = canvasW / 2; }
             pageH = bookH;
             
-            flip.active = false; flip.animating = false; flip.dragging = false;
+            flip.active = false; flip.animating = false; flip.dragging = false; 
+            flip.hovering = false; flip.isRetracting = false;
             
             if (initialLoaded) { updateUI(); draw(); }
         }
 
-        window.addEventListener('resize', resizeCanvas);
-        window.addEventListener('orientationchange', resizeCanvas);
+        window.addEventListener('resize', resizeCanvas); window.addEventListener('orientationchange', resizeCanvas);
 
         async function fetchImagesFromSheet() {
-            const sheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpzQghjNZwK55tv9DZw6jVikZPkPdmHTkXDyXIz5pcg_Ao7B5KkTMKwFP4VRsRgFwj22yuXl3V8Ndm/pub?gid=0&single=true&output=csv'; 
+            const sheetCsvUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vSpzQghjNZwK55tv9DZw6jVikZPkPdmHTkXDyXIz5pcg_Ao7B5KkTMKwFP4VRsRgFwj22yuXl3V8Ndm/pub?gid=0&single=true&output=csv&_t=${Date.now()}`; 
             try {
                 const response = await fetch(sheetCsvUrl);
                 if (!response.ok) throw new Error('網路讀取失敗');
-                const csvText = await response.text();
-                const rows = csvText.split('\n').map(r => r.trim());
-                imageUrls = rows.filter(row => row.startsWith('http')).map(url => url.replace('?authuser=0', ''));
-
-                if(imageUrls.length > 0) initImageLoader();
-                else document.getElementById('loading').innerText = '未找到圖片網址';
-            } catch (error) {
-                document.getElementById('loading').innerText = '讀取試算表失敗';
-            }
+                imageUrls = (await response.text()).split(/\r?\n/).map(r => r.trim()).filter(row => row.startsWith('http')).map(url => url.replace('?authuser=0', ''));
+                if (imageUrls.length > 0) initImageLoader();
+                else document.getElementById('loading').innerText = '未找到有效圖片網址';
+            } catch (e) { document.getElementById('loading').innerText = '電子書資料讀取失敗，請確認網路連線'; }
         }
 
         function initImageLoader() {
-            images = new Array(imageUrls.length).fill(null);
-            imageLoadStatus = new Array(imageUrls.length).fill(0);
-            initialLoaded = false;
-            
-            pageSlider.max = imageUrls.length;
-            document.getElementById('loading').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 載入核心頁面中...';
-            
-            loadPriorityImages();
-            startIdleLoader();
+            images = new Array(imageUrls.length).fill(null); imageLoadStatus = new Array(imageUrls.length).fill(0);
+            pageSlider.max = imageUrls.length; loadPriorityImages();
+            idleLoadTimer = setInterval(() => { let idx = imageLoadStatus.indexOf(0); if (idx !== -1) loadImage(idx); else clearInterval(idleLoadTimer); }, 300);
         }
 
         function loadPriorityImages() {
-            let baseIdx = isSinglePageMode ? currentSpread : currentSpread * 2;
-            let toLoad = [];
-
-            for(let i = baseIdx - 2; i <= baseIdx + 3; i++) {
-                if(i >= 0 && i < imageUrls.length && imageLoadStatus[i] === 0) toLoad.push(i);
-            }
-            [0, 1, imageUrls.length-2, imageUrls.length-1].forEach(i => {
-                if(i >= 0 && i < imageUrls.length && imageLoadStatus[i] === 0) toLoad.push(i);
-            });
+            let baseIdx = isSinglePageMode ? currentSpread : currentSpread * 2; let toLoad = [];
+            for (let i = baseIdx - 2; i <= baseIdx + 3; i++) { if (i >= 0 && i < imageUrls.length && imageLoadStatus[i] === 0) toLoad.push(i); }
+            [0, 1, imageUrls.length - 2, imageUrls.length - 1].forEach(i => { if (i >= 0 && i < imageUrls.length && imageLoadStatus[i] === 0) toLoad.push(i); });
             toLoad.forEach(i => loadImage(i));
         }
 
         function loadImage(idx) {
-            if(imageLoadStatus[idx] !== 0) return;
-            imageLoadStatus[idx] = 1;
-
-            const img = new Image();
-            img.onload = () => {
-                images[idx] = img; imageLoadStatus[idx] = 2;
-                checkInitialLoad(); updateThumbnail(idx);
-            };
-            img.onerror = () => {
-                images[idx] = null; imageLoadStatus[idx] = -1;
-                checkInitialLoad(); updateThumbnail(idx);
-            };
+            if (imageLoadStatus[idx] !== 0) return;
+            imageLoadStatus[idx] = 1; const img = new Image();
+            img.onload = () => { images[idx] = img; imageLoadStatus[idx] = 2; checkInitialLoad(); updateThumbnail(idx); };
+            img.onerror = () => { images[idx] = null; imageLoadStatus[idx] = -1; checkInitialLoad(); updateThumbnail(idx); };
             img.src = imageUrls[idx];
         }
 
         function checkInitialLoad() {
-            if(initialLoaded) return;
-            let required = Math.min(2, imageUrls.length);
-            let ready = 0;
-            for(let i=0; i<required; i++) if(imageLoadStatus[i] === 2 || imageLoadStatus[i] === -1) ready++;
-            
-            if(ready === required) {
-                initialLoaded = true;
-                document.getElementById('loading').style.display = 'none';
-                toolbar.style.display = 'flex';
-                generateThumbnails(); resizeCanvas(); requestAnimationFrame(renderLoop);
+            if (initialLoaded) return;
+            let req = Math.min(2, imageUrls.length); let ready = 0;
+            for (let i = 0; i < req; i++) if (imageLoadStatus[i] === 2 || imageLoadStatus[i] === -1) ready++;
+            if (ready === req) {
+                initialLoaded = true; document.getElementById('loading').style.display = 'none';
+                toolbar.style.display = 'flex'; generateThumbnails(); resizeCanvas(); requestAnimationFrame(renderLoop);
             }
         }
 
-        function startIdleLoader() {
-            if (idleLoadTimer) clearInterval(idleLoadTimer);
-            idleLoadTimer = setInterval(() => {
-                let idx = imageLoadStatus.indexOf(0);
-                if(idx !== -1) loadImage(idx); else clearInterval(idleLoadTimer);
-            }, 300);
-        }
+
+// ---- 紙張紋理（僅產生一次，之後每幀重複使用，效能開銷極低）----
+let paperTexturePattern = null;
+function createPaperTexture() {
+    const tex = document.createElement('canvas');
+    const size = 128;
+    tex.width = size; tex.height = size;
+    const tctx = tex.getContext('2d');
+    const imgData = tctx.createImageData(size, size);
+    for (let i = 0; i < imgData.data.length; i += 4) {
+        // 低對比灰階雜訊，讀起來像紙纖維而非數位噪點
+        const v = 232 + Math.floor(Math.random() * 20 - 10);
+        imgData.data[i] = v; imgData.data[i + 1] = v; imgData.data[i + 2] = v; imgData.data[i + 3] = 255;
+    }
+    tctx.putImageData(imgData, 0, 0);
+    paperTexturePattern = ctx.createPattern(tex, 'repeat');
+}
+createPaperTexture();
+
 
         fetchImagesFromSheet();
 
         function constrainPoint(P, C) {
             let p = { x: P.x, y: P.y };
-            let spineXPos = 0;
-            if (isSinglePageMode && C.x === 0) spineXPos = pageW;
-
+            let spineXPos = isSinglePageMode && C.x === 0 ? pageW : 0;
             let spineBase = { x: spineXPos, y: C.y };
-            let dxSpine = p.x - spineBase.x; let dySpine = p.y - spineBase.y;
-            let distSpine = Math.hypot(dxSpine, dySpine);
+            let dxSpine = p.x - spineBase.x, dySpine = p.y - spineBase.y, distSpine = Math.hypot(dxSpine, dySpine);
             if (distSpine > pageW) { p.x = spineBase.x + (dxSpine / distSpine) * pageW; p.y = spineBase.y + (dySpine / distSpine) * pageW; }
-
             let oppSpineBase = { x: spineXPos, y: (C.y === 0 ? pageH : 0) };
-            let dxOpp = p.x - oppSpineBase.x; let dyOpp = p.y - oppSpineBase.y;
-            let distOpp = Math.hypot(dxOpp, dyOpp); let diagonal = Math.hypot(pageW, pageH);
+            let dxOpp = p.x - oppSpineBase.x, dyOpp = p.y - oppSpineBase.y, distOpp = Math.hypot(dxOpp, dyOpp), diagonal = Math.hypot(pageW, pageH);
             if (distOpp > diagonal) { p.x = oppSpineBase.x + (dxOpp / distOpp) * diagonal; p.y = oppSpineBase.y + (dyOpp / distOpp) * diagonal; }
-            
             if (p.x < -pageW * 2) p.x = -pageW * 2; if (p.x > pageW * 2) p.x = pageW * 2;
             return p;
         }
 
         function clipPolygon(points, M, n) {
-            let result = [];
+            let result = []; let dists = points.map(p => (p.x - M.x) * n.x + (p.y - M.y) * n.y);
             for (let i = 0; i < points.length; i++) {
-                let p1 = points[i]; let p2 = points[(i + 1) % points.length];
-                let v1 = (p1.x - M.x) * n.x + (p1.y - M.y) * n.y; let v2 = (p2.x - M.x) * n.x + (p2.y - M.y) * n.y;
-                if (v1 >= 0) result.push(p1);
-                if (v1 * v2 < 0) { let t = v1 / (v1 - v2); result.push({ x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) }); }
+                let p1 = points[i], p2 = points[(i + 1) % points.length];
+                let d1 = dists[i], d2 = dists[(i + 1) % points.length];
+                if (d1 >= 0) result.push(p1);
+                if ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) {
+                    let denom = d1 - d2;
+                    let t = Math.abs(denom) > 1e-6 ? d1 / denom : 0;
+                    result.push({ x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) });
+                }
             }
             return result;
         }
 
         function tracePoly(ctx, pts) {
-            if (!pts || pts.length === 0) return;
+            if (!pts || pts.length === 0) { ctx.beginPath(); return; }
             ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
-            for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
             ctx.closePath();
         }
 
         function drawPageContent(ctx, idx) {
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, pageW, pageH);
-            if (idx >= 0 && idx < imageUrls.length) {
-                if (imageLoadStatus[idx] === 2 && images[idx]) {
-                    const img = images[idx];
-                    const margin = pageW * 0.005; 
-                    const availW = pageW - margin * 2; const availH = pageH - margin * 2;
-                    const imgAspect = img.width / img.height; const pageAspect = availW / availH;
-                    let drawW, drawH;
-                    if (imgAspect > pageAspect) { drawW = availW; drawH = availW / imgAspect; } 
-                    else { drawH = availH; drawW = availH * imgAspect; }
-                    
-                    let offsetX = 0;
-                    if (!isSinglePageMode) offsetX = (idx % 2 !== 0) ? -(pageW * 0.005) : (pageW * 0.005);
-                    let drawX = margin + (availW - drawW) / 2 + offsetX; let drawY = margin + (availH - drawH) / 2;
-                    ctx.drawImage(img, drawX, drawY, drawW, drawH);
-                } else {
-                    ctx.fillStyle = '#f5f5f5'; ctx.fillRect(pageW*0.1, pageH*0.1, pageW*0.8, pageH*0.8);
-                    ctx.fillStyle = '#999'; ctx.font = '16px "Microsoft JhengHei"';
-                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    if (imageLoadStatus[idx] === -1) { ctx.fillStyle = '#dc3545'; ctx.fillText('圖片載入失敗', pageW/2, pageH/2); } 
-                    else { ctx.fillText('背景載入中...', pageW/2, pageH/2); }
-                }
-            }
-            
-            ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 1; ctx.strokeRect(0, 0, pageW, pageH);
-            if (!isSinglePageMode) {
-                 if (idx % 2 !== 0) {
-                     let spineShadow = ctx.createLinearGradient(pageW - 30, 0, pageW, 0);
-                     spineShadow.addColorStop(0, 'rgba(0,0,0,0)'); spineShadow.addColorStop(1, 'rgba(0,0,0,0.18)');
-                     ctx.fillStyle = spineShadow; ctx.fillRect(pageW - 30, 0, 30, pageH);
-                 } else {
-                     let spineShadow = ctx.createLinearGradient(0, 0, 30, 0);
-                     spineShadow.addColorStop(0, 'rgba(0,0,0,0.18)'); spineShadow.addColorStop(1, 'rgba(0,0,0,0)');
-                     ctx.fillStyle = spineShadow; ctx.fillRect(0, 0, 30, pageH);
-                 }
-            }
-        }
+    if (idx < 0 || idx >= imageUrls.length) return; 
 
+    // 紙張底色：偏暖米白取代純白，較貼近實體紙張色調
+    ctx.fillStyle = '#fbfaf6'; 
+    ctx.fillRect(0, 0, pageW, pageH);
+
+    // 紙張紋理：低對比雜訊以 multiply 疊加，模擬紙纖維觸感
+    if (paperTexturePattern) {
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.fillStyle = paperTexturePattern;
+        ctx.fillRect(0, 0, pageW, pageH);
+        ctx.restore();
+    }
+
+    // 環境光暈：模擬光源由上方灑落，頁面上緣略亮、下緣略暗，增加立體感
+    let ambientLight = ctx.createLinearGradient(0, 0, 0, pageH);
+    ambientLight.addColorStop(0, 'rgba(255,255,255,0.18)');
+    ambientLight.addColorStop(0.4, 'rgba(255,255,255,0)');
+    ambientLight.addColorStop(1, 'rgba(0,0,0,0.04)');
+    ctx.fillStyle = ambientLight;
+    ctx.fillRect(0, 0, pageW, pageH);
+    
+    if (imageLoadStatus[idx] === 2 && images[idx]) {
+        const margin = pageW * 0.002;
+        const availW = pageW - margin * 2; const availH = pageH - margin * 2;
+        const imgAspect = images[idx].width / images[idx].height; const pageAspect = availW / availH;
+        let drawW = imgAspect > pageAspect ? availW : availH * imgAspect;
+        let drawH = imgAspect > pageAspect ? availW / imgAspect : availH;
+        let offsetX = !isSinglePageMode ? (idx % 2 !== 0 ? -(pageW * 0.002) : (pageW * 0.002)) : 0;
+        ctx.drawImage(images[idx], margin + (availW - drawW)/2 + offsetX, margin + (availH - drawH)/2, drawW, drawH);
+    } else {
+        ctx.fillStyle = '#f5f5f5'; ctx.fillRect(pageW * 0.1, pageH * 0.1, pageW * 0.8, pageH * 0.8);
+        ctx.fillStyle = '#999'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(imageLoadStatus[idx] === -1 ? '圖片載入失敗' : '頁面載入中...', pageW / 2, pageH / 2);
+    }
+    
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 1; ctx.strokeRect(0, 0, pageW, pageH);
+    if (!isSinglePageMode) {
+        let spineShadow = ctx.createLinearGradient(idx % 2 !== 0 ? pageW - 35 : 0, 0, idx % 2 !== 0 ? pageW : 35, 0);
+        spineShadow.addColorStop(0, idx % 2 !== 0 ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.18)');
+        spineShadow.addColorStop(1, idx % 2 !== 0 ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0)');
+        ctx.fillStyle = spineShadow; ctx.fillRect(idx % 2 !== 0 ? pageW - 35 : 0, 0, 35, pageH);
+    }
+}
         function draw() {
             ctx.clearRect(0, 0, canvasW, canvasH);
-            
-            ctx.save();
-            ctx.translate(canvasW / 2 + panX, canvasH / 2 + panY);
-            ctx.scale(currentZoom, currentZoom);
-            ctx.translate(-canvasW / 2, -canvasH / 2);
+            ctx.save(); ctx.translate(canvasW / 2 + panX, canvasH / 2 + panY); ctx.scale(currentZoom, currentZoom); ctx.translate(-canvasW / 2, -canvasH / 2);
 
+            // 繪製背景大陰影
             ctx.save(); ctx.translate(paddingX, paddingY);
-            ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.shadowColor = 'rgba(0,0,0,0.6)';
-            ctx.shadowBlur = 30; ctx.shadowOffsetY = 15; ctx.fillRect(0, 0, bookW, bookH);
+            ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 45; ctx.shadowOffsetY = 25; ctx.fillRect(0, 0, bookW, bookH);
+            ctx.restore();
+
+            // 繪製紙張厚度
+            ctx.save(); ctx.translate(spineX, paddingY);
+            
+            let leftTableSpreads = currentSpread;
+            let rightTableSpreads = maxIndex - currentSpread;
+            
+            // 動態修正：翻頁動畫進行中時，被掀起的那一頁不應算在底層靜態厚度內
+            if (flip.active || flip.hovering || flip.isRetracting) {
+                if (flip.dir === -1) leftTableSpreads = Math.max(0, leftTableSpreads - 1);
+                if (flip.dir === 1) rightTableSpreads = Math.max(0, rightTableSpreads - 1);
+            }
+
+            let leftRatio = maxIndex > 0 ? (leftTableSpreads / maxIndex) : 0;
+            let leftThick = leftTableSpreads > 0 ? Math.max(1, 10 * leftRatio) : 0;
+            let rightRatio = maxIndex > 0 ? (rightTableSpreads / maxIndex) : 0;
+            let rightThick = rightTableSpreads > 0 ? Math.max(1, 10 * rightRatio) : 0;
+
+            if (!isSinglePageMode) {
+                if (leftThick > 0) {
+                    ctx.fillStyle = '#f3f3f3'; ctx.fillRect(-pageW - leftThick, 0, leftThick, pageH);
+                    ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1; ctx.beginPath();
+                    for (let i = 1.5; i < leftThick; i += 1.5) { ctx.moveTo(-pageW - i, 0); ctx.lineTo(-pageW - i, pageH); } ctx.stroke();
+                }
+                if (rightThick > 0) {
+                    ctx.fillStyle = '#f3f3f3'; ctx.fillRect(pageW, 0, rightThick, pageH);
+                    ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1; ctx.beginPath();
+                    for (let i = 1.5; i < rightThick; i += 1.5) { ctx.moveTo(pageW + i, 0); ctx.lineTo(pageW + i, pageH); } ctx.stroke();
+                }
+            } else {
+                ctx.fillStyle = '#f3f3f3'; ctx.fillRect(pageW, 0, 8, pageH);
+                ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1; ctx.beginPath();
+                for (let i = 1.5; i < 8; i += 1.5) { ctx.moveTo(pageW + i, 0); ctx.lineTo(pageW + i, pageH); } ctx.stroke();
+            }
             ctx.restore();
 
             ctx.save(); ctx.translate(spineX, paddingY);
-            let leftIdx = isSinglePageMode ? -1 : currentSpread * 2 - 1;
-            let rightIdx = isSinglePageMode ? currentSpread : currentSpread * 2;
+            let leftIdx = isSinglePageMode ? -1 : currentSpread * 2 - 1; let rightIdx = isSinglePageMode ? currentSpread : currentSpread * 2;
 
-            if (!flip.active) {
-                if (!isSinglePageMode && leftIdx >= 0) {
-                    ctx.save(); ctx.translate(-pageW, 0); drawPageContent(ctx, leftIdx); ctx.restore();
-                }
+            if (!flip.active && !flip.hovering && !flip.isRetracting) {
+                if (!isSinglePageMode && leftIdx >= 0) { ctx.save(); ctx.translate(-pageW, 0); drawPageContent(ctx, leftIdx); ctx.restore(); }
                 if (rightIdx <= imageUrls.length) drawPageContent(ctx, rightIdx);
             } else {
-                let bottomIdx, topIdx, peelCorner, isFlippingRight;
-                let cornerY = flip.p.y < pageH / 2 ? 0 : pageH;
+                let isFlippingRight = flip.dir === 1;
+                let topIdx = isFlippingRight ? rightIdx : (isSinglePageMode ? rightIdx - 1 : leftIdx);
+                let bottomIdx = isFlippingRight ? (isSinglePageMode ? rightIdx + 1 : rightIdx + 2) : (isSinglePageMode ? rightIdx : leftIdx - 2);
+                let peelCorner = flip.cornerBase;
 
-                if (flip.dir === 1) { 
-                    isFlippingRight = true; topIdx = rightIdx; bottomIdx = isSinglePageMode ? rightIdx + 1 : rightIdx + 2; peelCorner = { x: pageW, y: cornerY };
-                } else { 
-                    isFlippingRight = false;
-                    if (isSinglePageMode) { topIdx = rightIdx - 1; bottomIdx = rightIdx; peelCorner = { x: 0, y: cornerY }; } 
-                    else { topIdx = leftIdx; bottomIdx = leftIdx - 2; peelCorner = { x: -pageW, y: cornerY }; }
-                }
-                
+                // 【加強保護】：畫靜態未被翻動的那一頁，確實檢查邊界避免不必要的平移與呼叫
                 if (!isSinglePageMode) {
-                    if (isFlippingRight) { if (leftIdx >= 0) { ctx.save(); ctx.translate(-pageW, 0); drawPageContent(ctx, leftIdx); ctx.restore(); } } 
-                    else { if (rightIdx < imageUrls.length) { drawPageContent(ctx, rightIdx); } }
+                    if (isFlippingRight) { 
+                        if (leftIdx >= 0) {
+                            ctx.save(); ctx.translate(-pageW, 0); drawPageContent(ctx, leftIdx); ctx.restore(); 
+                        }
+                    } 
+                    else { 
+                        if (rightIdx < imageUrls.length) {
+                            drawPageContent(ctx, rightIdx); 
+                        }
+                    }
                 }
-
-                ctx.save();
-                if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0);
-                drawPageContent(ctx, bottomIdx); ctx.restore();
 
                 let P = constrainPoint(flip.p, peelCorner);
-                let dx = P.x - peelCorner.x, dy = P.y - peelCorner.y; let dist = Math.hypot(dx, dy);
+                let dx = P.x - peelCorner.x, dy = P.y - peelCorner.y, dist = Math.hypot(dx, dy);
 
-                if (dist > 1) {
-                    let M = { x: (peelCorner.x + P.x)/2, y: (peelCorner.y + P.y)/2 }; let n = { x: dx/dist, y: dy/dist };
+                let validGeometry = false; let polyUnfold, polyFold, M, n;
+
+                if (dist > 5) {
+                    M = { x: (peelCorner.x + P.x)/2, y: (peelCorner.y + P.y)/2 }; 
+                    n = { x: dx/dist, y: dy/dist }; // 法向量 n
                     let pageRect = isSinglePageMode ? [{x:0,y:0}, {x:pageW,y:0}, {x:pageW,y:pageH}, {x:0,y:pageH}] :
                         (isFlippingRight ? [{x:0,y:0}, {x:pageW,y:0}, {x:pageW,y:pageH}, {x:0,y:pageH}] : [{x:-pageW,y:0}, {x:0,y:0}, {x:0,y:pageH}, {x:-pageW,y:pageH}]);
+                    
+                    polyUnfold = clipPolygon(pageRect, M, n); 
+                    polyFold = clipPolygon(pageRect, M, {x: -n.x, y: -n.y});
+                    
+                    if (polyUnfold.length >= 3 && polyFold.length >= 3) validGeometry = true;
+                }
 
-                    let polyUnfold = clipPolygon(pageRect, M, n); let polyFold = clipPolygon(pageRect, M, {x: -n.x, y: -n.y});
+                if (validGeometry) {
+                    // --- 1. 底層暴露出的新頁面 (Bottom Page) ---
+                    ctx.save(); 
+                    if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0); 
+                    drawPageContent(ctx, bottomIdx); 
+                    ctx.restore();
 
+                    // --- 2. 投射到底層的懸浮投影 (Drop Shadow) ---
+                    ctx.save();
+                    let shadowRect = isSinglePageMode ? [{x:0,y:0}, {x:pageW,y:0}, {x:pageW,y:pageH}, {x:0,y:pageH}] :
+                        (isFlippingRight ? [{x:0,y:0}, {x:pageW,y:0}, {x:pageW,y:pageH}, {x:0,y:pageH}] : [{x:-pageW,y:0}, {x:0,y:0}, {x:0,y:pageH}, {x:-pageW,y:pageH}]);
+                    tracePoly(ctx, shadowRect); ctx.clip();
+                    
+                    let dropDist = Math.max(60, dist * 0.5);
+                    let dropGrad = ctx.createLinearGradient(M.x, M.y, M.x + n.x * dropDist, M.y + n.y * dropDist);
+                    dropGrad.addColorStop(0, 'rgba(0,0,0,0.5)');  
+                    dropGrad.addColorStop(0.2, 'rgba(0,0,0,0.15)');
+                    dropGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = dropGrad; 
+                    ctx.fillRect(-pageW*2, -pageH*2, pageW*4, pageH*4);
+                    ctx.restore();
+
+                    // --- 3. 繪製平躺未掀起的頁面部分 (PolyUnfold) ---
                     ctx.save(); tracePoly(ctx, polyUnfold); ctx.clip();
-                    if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0);
-                    drawPageContent(ctx, topIdx); ctx.restore();
+                    ctx.save(); if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0); drawPageContent(ctx, topIdx); ctx.restore();
+                    
+                    // 靠近折痕處的微張力牽引陰影 (Tension Shadow)
+                    let tensionDist = Math.max(30, dist * 0.2);
+                    let tensionGrad = ctx.createLinearGradient(M.x, M.y, M.x + n.x * tensionDist, M.y + n.y * tensionDist);
+                    tensionGrad.addColorStop(0, 'rgba(0,0,0,0.12)');
+                    tensionGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = tensionGrad;
+                    ctx.fillRect(-pageW*2, -pageH*2, pageW*4, pageH*4);
+                    ctx.restore(); // 結束 PolyUnfold
 
-                    ctx.save(); tracePoly(ctx, polyFold); ctx.clip();
-                    let shadowGrad = ctx.createLinearGradient(M.x, M.y, M.x - n.x*120, M.y - n.y*120);
-                    shadowGrad.addColorStop(0, 'rgba(0,0,0,0.6)'); shadowGrad.addColorStop(0.2, 'rgba(0,0,0,0.15)'); shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-                    ctx.fillStyle = shadowGrad; ctx.fillRect(isSinglePageMode || isFlippingRight ? 0 : -pageW, 0, pageW, pageH); ctx.restore();
-
-                    ctx.save(); let t = { x: -n.y, y: n.x }; let alpha = Math.atan2(t.y, t.x);
+                    // --- 4. 繪製翻起的紙張面 (PolyFold) ---
+                    ctx.save(); 
+                    
+                    // 進入鏡像反射空間
+                    let t = { x: -n.y, y: n.x }; let alpha = Math.atan2(t.y, t.x);
                     ctx.translate(M.x, M.y); ctx.rotate(alpha); ctx.scale(1, -1); ctx.rotate(-alpha); ctx.translate(-M.x, -M.y);
                     
-                    ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 5; ctx.fillStyle = '#fff';
-                    tracePoly(ctx, polyFold); ctx.fill();
-
-                    ctx.clip();
-                    let backIdx = flip.dir === 1 ? topIdx + 1 : (isSinglePageMode ? topIdx : topIdx - 1);
-                    ctx.save();
-                    if (isSinglePageMode || isFlippingRight) { ctx.translate(pageW, 0); ctx.scale(-1, 1); } else { ctx.scale(-1, 1); }
-                    drawPageContent(ctx, backIdx); ctx.restore();
+                    // 將 Clip 放回鏡像空間內，完美重現實體的翻動感
+                    tracePoly(ctx, polyFold); ctx.clip();
                     
-                    let foldGrad = ctx.createLinearGradient(M.x, M.y, M.x + n.x*100, M.y + n.y*100);
-                    foldGrad.addColorStop(0, 'rgba(0,0,0,0.5)'); foldGrad.addColorStop(0.08, 'rgba(255,255,255,0.7)'); 
-                    foldGrad.addColorStop(0.3, 'rgba(255,255,255,0.1)'); foldGrad.addColorStop(1, 'rgba(0,0,0,0.15)');       
-                    ctx.fillStyle = foldGrad; ctx.fill();
-
-                    ctx.beginPath(); ctx.moveTo(polyFold[0].x, polyFold[0].y);
-                    for(let i=1; i<polyFold.length; i++) ctx.lineTo(polyFold[i].x, polyFold[i].y);
-                    ctx.closePath(); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+                    let backIdx = flip.dir === 1 ? topIdx + 1 : (isSinglePageMode ? topIdx : topIdx - 1);
+                    ctx.save(); 
+                    if (isSinglePageMode || isFlippingRight) { ctx.translate(pageW, 0); ctx.scale(-1, 1); } 
+                    else { ctx.scale(-1, 1); } 
+                    drawPageContent(ctx, backIdx); 
                     ctx.restore();
+                    
+                    // 紙張背面微透光 (Bleed-Through) - 已停用
+/*
+ctx.globalAlpha = 0.08; 
+ctx.save();
+ctx.scale(-1, 1); 
+if (isSinglePageMode || isFlippingRight) { ctx.translate(-pageW, 0); } 
+drawPageContent(ctx, topIdx); 
+ctx.restore();
+ctx.globalAlpha = 1.0;
+*/
+
+                    // ★★★ 終極 3D 圓柱體高光與亮色漸層 (Apex Highlight) ★★★
+// 1. 計算翻頁進度比例 (0 ~ 1)
+let flipProgress = Math.min(1, dist / (pageW * 2));
+
+// 2. 設定較為緊湊的圓柱體半徑，讓光影集中在折痕處
+let curlRadius = 80 + (dist * 0.3); 
+
+// 3. 計算反光與陰影強度 (調降透明度參數，讓反光更柔和自然)
+let intensity = Math.sin(flipProgress * Math.PI); 
+let highlightAlpha = 0.12 + (0.25 * intensity); // ★ 大幅調降高光亮度，讓反光「淡一些」
+let shadowAlpha = 0.1 + (0.15 * intensity);     // ★ 同步微調陰影，降低黑白對比度，光影更自然
+
+// 4. 【極致貼合折痕】：將高光鎖定在緊貼折痕 (M點) 的曲面上
+let peakPos = 0.06 + (0.04 * flipProgress); 
+
+let foldGrad = ctx.createLinearGradient(M.x, M.y, M.x - n.x * curlRadius, M.y - n.y * curlRadius);
+
+// 重新配置漸層節點，讓光影過渡更平滑柔和
+foldGrad.addColorStop(0, `rgba(0, 0, 0, ${shadowAlpha * 1.2})`);                 // 1. 折痕最深處暗角稍微放輕
+foldGrad.addColorStop(0.02, 'rgba(0, 0, 0, 0)');                                 // 2. 暗角過渡
+foldGrad.addColorStop(peakPos, `rgba(255, 255, 255, ${highlightAlpha})`);        // 3. ★ 立體高光點 (亮度已調淡)
+foldGrad.addColorStop(Math.min(0.98, peakPos + 0.18), 'rgba(255, 255, 255, 0)'); // 4. 高光發散範圍稍微拉寬，讓光暈更柔和漫射
+foldGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.02)');                               // 5. 紙張中段平緩區
+foldGrad.addColorStop(1, `rgba(0, 0, 0, ${shadowAlpha * 0.6})`);                 // 6. 外側邊緣陰影也放輕，減弱厚重感
+
+ctx.fillStyle = foldGrad; 
+ctx.fillRect(-pageW*2, -pageH*2, pageW*4, pageH*4);
+
+                    // 紙張實體厚度切邊
+                    ctx.beginPath(); ctx.moveTo(polyFold[0].x, polyFold[0].y); for (let i = 1; i < polyFold.length; i++) ctx.lineTo(polyFold[i].x, polyFold[i].y);
+                    ctx.closePath(); 
+                    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1.5; ctx.stroke();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 0.5; ctx.stroke();
+                    
+                    ctx.restore(); 
                 } else {
+                    // 邊緣距離不足時安全退回平靜繪製
+                    ctx.save();
                     if (!isSinglePageMode && !isFlippingRight) ctx.translate(-pageW, 0);
                     drawPageContent(ctx, topIdx);
+                    ctx.restore();
                 }
             }
             ctx.restore(); ctx.restore(); 
         }
 
         function renderLoop() {
-            if (flip.animating) {
-                const fx = -flip.tension * (flip.p.x - flip.target.x); const fy = -flip.tension * (flip.p.y - flip.target.y);
-                flip.v.x += fx - flip.damping * flip.v.x; flip.v.y += fy - flip.damping * flip.v.y;
+            if (flip.animating || flip.hovering || flip.isRetracting || (flip.active && !flip.dragging)) {
+                let distToSpine = Math.abs(flip.p.x);
+                let pullRatio = Math.max(0.1, Math.min(1, distToSpine / pageW));
+                
+                if (flip.animating) {
+                    flip.tension = 0.15 + (1 - pullRatio) * 0.4;
+                    flip.damping = 0.65 + pullRatio * 0.15;
+                }
+
+                const fx = -flip.tension * (flip.p.x - flip.target.x); 
+                const fy = -flip.tension * (flip.p.y - flip.target.y);
+                flip.v.x += fx - flip.damping * flip.v.x; flip.v.y += fy - flip.damping * flip.v.y; 
                 flip.p.x += flip.v.x; flip.p.y += flip.v.y;
 
-                if (Math.hypot(flip.p.x - flip.target.x, flip.p.y - flip.target.y) < 0.5 && Math.hypot(flip.v.x, flip.v.y) < 0.5) {
-                    flip.animating = false; flip.p = { x: flip.target.x, y: flip.target.y }; flip.v = {x:0, y:0};
-                    let isFlipped = false;
-                    if (flip.dir === 1 && flip.target.x < (isSinglePageMode ? 0 : -pageW/2)) isFlipped = true;
-                    if (flip.dir === -1 && flip.target.x > (isSinglePageMode ? pageW : pageW/2)) isFlipped = true;
-                    if (isFlipped) currentSpread += flip.dir;
-                    flip.active = false; updateUI();
+                if (Math.hypot(flip.p.x - flip.target.x, flip.p.y - flip.target.y) < 0.6 && Math.hypot(flip.v.x, flip.v.y) < 0.6) {
+                    if (flip.animating) {
+                        flip.animating = false; flip.p = { x: flip.target.x, y: flip.target.y }; flip.v = { x: 0, y: 0 };
+                        let isFlipped = false;
+                        if (flip.dir === 1 && flip.target.x < (isSinglePageMode ? 0 : -pageW / 2)) isFlipped = true;
+                        if (flip.dir === -1 && flip.target.x > (isSinglePageMode ? pageW : pageW / 2)) isFlipped = true;
+                        if (isFlipped) currentSpread += flip.dir;
+                        flip.active = false; updateUI();
+                    } else if (flip.isRetracting) {
+                        flip.isRetracting = false; flip.active = false; flip.p = { x: flip.target.x, y: flip.target.y }; flip.v = { x: 0, y: 0 };
+                    }
                 }
             }
             if (initialLoaded) draw();
             requestAnimationFrame(renderLoop);
         }
 
-        // 支援原生 Touch 事件修正的滑鼠/觸控座標解析器
         function getLocalPointer(e) {
-            let clientX = e.clientX; let clientY = e.clientY;
-            if (e.changedTouches && e.changedTouches.length > 0) {
-                clientX = e.changedTouches[0].clientX; clientY = e.changedTouches[0].clientY;
-            } else if (e.touches && e.touches.length > 0) {
-                clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
-            }
-            
+            let clientX = e.clientX, clientY = e.clientY;
+            if (e.changedTouches && e.changedTouches.length > 0) { clientX = e.changedTouches[0].clientX; clientY = e.changedTouches[0].clientY; } 
+            else if (e.touches && e.touches.length > 0) { clientX = e.touches[0].clientX; clientY = e.touches[0].clientY; }
             const rect = canvas.getBoundingClientRect();
-            const cx = clientX - rect.left; const cy = clientY - rect.top;
+            const cx = clientX - rect.left, cy = clientY - rect.top;
             const canvasX = (cx - canvasW / 2 - panX) / currentZoom + canvasW / 2;
             const canvasY = (cy - canvasH / 2 - panY) / currentZoom + canvasH / 2;
             return { x: canvasX - spineX, y: canvasY - paddingY, globalX: clientX, globalY: clientY };
         }
 
-        function handlePointerDown(e) {
-            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('.thumb-bar') || e.target.closest('.toolbar')) return;
-            if (flip.animating) return;
-            
-            thumbBar.classList.remove('active'); document.getElementById('btn-grid').classList.remove('active');
-            document.getElementById('share-popup').classList.remove('active');
-
-            let local = getLocalPointer(e); 
-            
-            // ★ 記錄全域滑動起點 (供手勢滑動使用)
-            swipeStartGlobal = { x: local.globalX, y: local.globalY, time: Date.now() };
-
-            let corner;
+        function checkCorner(local) {
             let isTop = local.y < pageH * 0.5; let cornerY = isTop ? 0 : pageH;
             let isNearCornerY = isTop ? (local.y < pageH * 0.3) : (local.y > pageH * 0.7);
-
             if (isNearCornerY) {
                 if (isSinglePageMode) {
-                    if (local.x > pageW * 0.7 && currentSpread < maxIndex) { corner = { x: pageW, y: cornerY }; flip.dir = 1; }
-                    else if (local.x < pageW * 0.3 && currentSpread > 0) { corner = { x: 0, y: cornerY }; flip.dir = -1; }
+                    if (local.x > pageW * 0.7 && currentSpread < maxIndex) return { x: pageW, y: cornerY, dir: 1 };
+                    if (local.x < pageW * 0.3 && currentSpread > 0) return { x: 0, y: cornerY, dir: -1 };
                 } else {
-                    if (local.x > pageW * 0.5 && currentSpread < maxIndex) { corner = { x: pageW, y: cornerY }; flip.dir = 1; }
-                    else if (local.x < -pageW * 0.5 && currentSpread > 0) { corner = { x: -pageW, y: cornerY }; flip.dir = -1; }
+                    if (local.x > pageW * 0.5 && currentSpread < maxIndex) return { x: pageW, y: cornerY, dir: 1 };
+                    if (local.x < -pageW * 0.5 && currentSpread > 0) return { x: -pageW, y: cornerY, dir: -1 };
                 }
             }
+            return null;
+        }
 
-            if (corner) {
-                flip.active = true; flip.dragging = true; flip.p = { x: corner.x, y: corner.y };
-                flip.target = { x: corner.x - flip.dir * 30, y: corner.y + (isTop ? 20 : -20) };
-                flip.animating = true; dragStart = local; canvas.style.cursor = 'grabbing'; e.preventDefault();
+        function handlePointerDown(e) {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.closest('.thumb-bar') || e.target.closest('.toolbar')) return;
+            
+            thumbBar.classList.remove('active'); document.getElementById('btn-grid').classList.remove('active'); document.getElementById('share-popup').classList.remove('active');
+
+            if (e.touches && e.touches.length === 2) {
+                touchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                zoomStartVal = currentZoom; isPanning = false; flip.dragging = false; return;
+            }
+
+            let local = getLocalPointer(e); swipeStartGlobal = { x: local.globalX, y: local.globalY, time: Date.now() };
+            let corner = checkCorner(local);
+            
+            if (corner && currentZoom === 1) {
+                flip.active = true; flip.animating = false; flip.hovering = false; flip.isRetracting = false; flip.dragging = true;
+                flip.dir = corner.dir; flip.cornerBase = { x: corner.x, y: corner.y };
+                flip.p = local; dragStart = local; canvas.style.cursor = 'grabbing'; swipeStartGlobal.time = 0; e.preventDefault();
             } else if (currentZoom > 1) {
                 isPanning = true; panStart = { x: local.globalX - panX, y: local.globalY - panY };
-                canvas.style.cursor = 'move'; e.preventDefault();
+                canvas.style.cursor = 'move'; swipeStartGlobal.time = 0; e.preventDefault();
             }
         }
         
         function handlePointerMove(e) {
-            if (isPanning) {
-                let local = getLocalPointer(e);
-                panX = local.globalX - panStart.x; panY = local.globalY - panStart.y; e.preventDefault();
-            } else if (flip.dragging) { 
-                let local = getLocalPointer(e); flip.p = local; flip.animating = false; e.preventDefault(); 
-            } else {
-                let local = getLocalPointer(e);
-                let isTop = local.y < pageH * 0.3; let isBottom = local.y > pageH * 0.7; let isHover = false;
-                if (isTop || isBottom) {
-                    if (isSinglePageMode) { if (local.x > pageW*0.7 || local.x < pageW*0.3) isHover = true; } 
-                    else { if (local.x > pageW*0.5 || local.x < -pageW*0.5) isHover = true; }
-                }
-                if (isHover) canvas.style.cursor = 'grab';
-                else if (currentZoom > 1) canvas.style.cursor = 'move';
-                else canvas.style.cursor = 'default';
+            if (e.touches && e.touches.length === 2 && touchStartDist > 0) {
+                let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                let scaleFactor = dist / touchStartDist; currentZoom = Math.max(0.8, Math.min(3, zoomStartVal * scaleFactor));
+                if (currentZoom <= 1) { panX = 0; panY = 0; } if (initialLoaded) draw(); e.preventDefault(); return;
             }
-        }
-        
-        function handlePointerUp(e) {
-            if (isPanning) {
-                isPanning = false; canvas.style.cursor = 'default';
-            } else if (flip.dragging) {
-                flip.dragging = false; flip.animating = true; canvas.style.cursor = 'grab';
-                let local = getLocalPointer(e);
-                let dist = Math.hypot(flip.p.x - dragStart.x, flip.p.y - dragStart.y);
-                if (dist < 20) setFlipTarget(flip.dir, true);
-                else {
-                    let titleOver = false;
-                    if (flip.dir === 1 && flip.p.x < (isSinglePageMode ? pageW/4 : 0)) titleOver = true;
-                    if (flip.dir === -1 && flip.p.x > (isSinglePageMode ? pageW*3/4 : 0)) titleOver = true;
-                    setFlipTarget(flip.dir, titleOver);
-                }
-            } else {
-                // ★ 新增：全域滑動(Swipe)偵測邏輯
-                let local = getLocalPointer(e);
-                let dx = local.globalX - swipeStartGlobal.x;
-                let dy = local.globalY - swipeStartGlobal.y;
-                let dt = Date.now() - swipeStartGlobal.time;
 
-                // 若在縮放為1的情況下，滑動速度快(<400ms)，位移大(>50px)，且主要為水平方向，則視為翻頁手勢
-                if (currentZoom === 1 && dt < 400 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-                    if (dx < 0 && currentSpread < maxIndex) {
-                        triggerButtonFlip(1); // 向左滑 -> 下一頁
-                    } else if (dx > 0 && currentSpread > 0) {
-                        triggerButtonFlip(-1); // 向右滑 -> 上一頁
+            if (isPanning) {
+                let local = getLocalPointer(e); panX = local.globalX - panStart.x; panY = local.globalY - panStart.y; e.preventDefault();
+            } else if (flip.dragging) { 
+                flip.p = getLocalPointer(e); e.preventDefault(); 
+            } else if (!flip.animating) {
+                let local = getLocalPointer(e); let corner = checkCorner(local);
+                
+                if (corner && (!e.pointerType || e.pointerType === 'mouse') && currentZoom === 1) {
+                    canvas.style.cursor = 'pointer';
+                    if (!flip.hovering || flip.dir !== corner.dir || flip.cornerBase.y !== corner.y) {
+                        let wasHovering = flip.hovering; let oldDir = flip.dir; let oldCornerY = flip.cornerBase.y;
+                        flip.active = true; flip.hovering = true; flip.isRetracting = false;
+                        flip.dir = corner.dir; flip.cornerBase = { x: corner.x, y: corner.y };
+                        if (!wasHovering || oldDir !== corner.dir || oldCornerY !== corner.y) { flip.p = { x: corner.x, y: corner.y }; flip.v = { x: 0, y: 0 }; }
+                        flip.target = { x: corner.x - corner.dir * 45, y: corner.y + (corner.y === 0 ? 30 : -30) };
+                        flip.tension = 0.3; flip.damping = 0.6;
+                    }
+                } else {
+                    canvas.style.cursor = currentZoom > 1 ? 'move' : 'default';
+                    if (flip.hovering) {
+                        flip.hovering = false; flip.isRetracting = true;
+                        flip.target = { x: flip.cornerBase.x, y: flip.cornerBase.y };
+                        flip.tension = 0.45;
                     }
                 }
             }
         }
         
+        function handlePointerUp(e) {
+            if (e.touches && e.touches.length < 2) touchStartDist = 0;
+            if (isPanning) {
+                isPanning = false; canvas.style.cursor = 'default';
+            } else if (flip.dragging) {
+                flip.dragging = false; flip.animating = true; flip.hovering = false; flip.isRetracting = false; canvas.style.cursor = 'default';
+                let dist = Math.hypot(flip.p.x - dragStart.x, flip.p.y - dragStart.y);
+                if (dist < 12) setFlipTarget(flip.dir, true);
+                else {
+                    let isSingle = isSinglePageMode;
+                    let titleOver = (flip.dir === 1 && flip.p.x < (isSingle ? pageW * 0.4 : 0)) || (flip.dir === -1 && flip.p.x > (isSingle ? pageW * 0.6 : 0));
+                    setFlipTarget(flip.dir, titleOver);
+                }
+            } else if (swipeStartGlobal.time > 0) {
+                let local = getLocalPointer(e); let dx = local.globalX - swipeStartGlobal.x; let dy = local.globalY - swipeStartGlobal.y;
+                if (currentZoom === 1 && Date.now() - swipeStartGlobal.time < 400 && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                    if (dx < 0 && currentSpread < maxIndex) triggerButtonFlip(1); else if (dx > 0 && currentSpread > 0) triggerButtonFlip(-1); 
+                }
+                swipeStartGlobal.time = 0;
+            }
+        }
+        
         function setFlipTarget(dir, isSuccess) {
-             let finalX, finalY; 
-             if (isSuccess) {
-                 if (isSinglePageMode) finalX = dir === 1 ? -pageW * 0.8 : pageW * 1.8;
-                 else finalX = dir === 1 ? -pageW * 1.5 : pageW * 1.5;
-                 finalY = flip.p.y; 
-             } else {
-                 finalY = flip.p.y < pageH / 2 ? 0 : pageH; 
-                 if (isSinglePageMode) finalX = dir === 1 ? pageW : 0;
-                 else finalX = dir === 1 ? pageW : -pageW;
-             }
-             flip.target = { x: finalX, y: finalY };
+            let finalX, finalY; 
+            if (isSuccess) {
+                if (isSinglePageMode) finalX = dir === 1 ? -pageW * 0.8 : pageW * 1.8; else finalX = dir === 1 ? -pageW * 1.5 : pageW * 1.5;
+                finalY = flip.p.y + (flip.cornerBase.y === 0 ? 50 : -50);
+            } else {
+                finalY = flip.cornerBase.y; if (isSinglePageMode) finalX = dir === 1 ? pageW : 0; else finalX = dir === 1 ? pageW : -pageW;
+            }
+            flip.target = { x: finalX, y: finalY };
         }
 
         canvas.addEventListener('mousedown', handlePointerDown); window.addEventListener('mousemove', handlePointerMove); window.addEventListener('mouseup', handlePointerUp);
-        canvas.addEventListener('touchstart', handlePointerDown, { passive: false }); window.addEventListener('touchmove', handlePointerMove, { passive: false });
-        window.addEventListener('touchend', handlePointerUp); window.addEventListener('touchcancel', handlePointerUp);
-
+        canvas.addEventListener('touchstart', handlePointerDown, { passive: false }); window.addEventListener('touchmove', handlePointerMove, { passive: false }); window.addEventListener('touchend', handlePointerUp); window.addEventListener('touchcancel', handlePointerUp);
         canvas.addEventListener('wheel', (e) => {
-            if (e.ctrlKey) {
+            if (e.ctrlKey || e.metaKey) {
                 e.preventDefault(); let zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
-                currentZoom = Math.max(0.5, Math.min(3, currentZoom + zoomDelta));
-                if (currentZoom <= 1) { panX = 0; panY = 0; currentZoom = 1; }
+                currentZoom = Math.max(0.8, Math.min(3, currentZoom + zoomDelta));
+                if (currentZoom <= 1) { panX = 0; panY = 0; currentZoom = 1; } if (initialLoaded) draw();
             }
         }, { passive: false });
+        window.addEventListener('keydown', (e) => {
+            if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+            if (e.key === 'ArrowRight' || e.key === 'PageDown') { if (currentSpread < maxIndex) triggerButtonFlip(1); }
+            else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { if (currentSpread > 0) triggerButtonFlip(-1); }
+            else if (e.key === 'Home') { currentSpread = 0; updateUI(); if (initialLoaded) draw(); }
+            else if (e.key === 'End') { currentSpread = maxIndex; updateUI(); if (initialLoaded) draw(); }
+            else if (e.key === 'Escape') { currentZoom = 1; panX = 0; panY = 0; thumbBar.classList.remove('active'); sharePopup.classList.remove('active'); if (initialLoaded) draw(); }
+        });
 
         const prevBtn = document.getElementById('prev-btn'); const nextBtn = document.getElementById('next-btn');
-
         function updateUI() {
             prevBtn.disabled = currentSpread === 0; nextBtn.disabled = currentSpread >= maxIndex;
-            if (imageUrls.length > 0) {
-                let actualPageBase = isSinglePageMode ? currentSpread + 1 : currentSpread * 2;
-                let displayStr = isSinglePageMode ? `${actualPageBase} / ${imageUrls.length}` : 
-                    (actualPageBase === 0 ? `1 / ${imageUrls.length}` : (actualPageBase >= imageUrls.length ? `${imageUrls.length} / ${imageUrls.length}` : `${actualPageBase}-${actualPageBase+1} / ${imageUrls.length}`));
-                pageDisplay.innerText = displayStr;
-                let sliderVal = isSinglePageMode ? currentSpread + 1 : (currentSpread === 0 ? 1 : currentSpread * 2);
-                pageSlider.value = sliderVal;
+// 新增：首尾頁按鈕禁用狀態同步
+    document.getElementById('btn-first').disabled = currentSpread === 0;
+    document.getElementById('btn-last').disabled = currentSpread >= maxIndex;            
 
+if (imageUrls.length > 0) {
+                let actualPageBase = isSinglePageMode ? currentSpread + 1 : currentSpread * 2;
+                pageDisplay.innerText = isSinglePageMode ? `${actualPageBase} / ${imageUrls.length}` : (actualPageBase === 0 ? `1 / ${imageUrls.length}` : (actualPageBase >= imageUrls.length ? `${imageUrls.length} / ${imageUrls.length}` : `${actualPageBase}-${actualPageBase+1} / ${imageUrls.length}`));
+                pageSlider.value = isSinglePageMode ? currentSpread + 1 : (currentSpread === 0 ? 1 : currentSpread * 2);
                 document.querySelectorAll('.thumb-item').forEach(el => el.classList.remove('current'));
-                let currentThumb = document.getElementById(`thumb-${sliderVal-1}`);
-                if (currentThumb) {
-                    currentThumb.classList.add('current');
-                    if (thumbBar.classList.contains('active')) currentThumb.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-                }
+                let currentThumb = document.getElementById(`thumb-${pageSlider.value - 1}`);
+                if (currentThumb) { currentThumb.classList.add('current'); if (thumbBar.classList.contains('active')) currentThumb.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); }
             }
             loadPriorityImages();
         }
 
         function triggerButtonFlip(dir) {
-            thumbBar.classList.remove('active'); document.getElementById('btn-grid').classList.remove('active');
-            document.getElementById('share-popup').classList.remove('active');
+            thumbBar.classList.remove('active'); document.getElementById('btn-grid').classList.remove('active'); document.getElementById('share-popup').classList.remove('active');
             if (flip.animating || flip.dragging) return;
             let startX = isSinglePageMode ? (dir === 1 ? pageW : 0) : (dir === 1 ? pageW : -pageW);
-            flip.active = true; flip.dragging = false; flip.animating = true; flip.dir = dir;
-            flip.p = { x: startX, y: pageH }; flip.v = { x: 0, y: 0 }; setFlipTarget(dir, true);
+            flip.active = true; flip.dragging = false; flip.animating = true; flip.hovering = false; flip.isRetracting = false;
+            flip.dir = dir; flip.cornerBase = { x: startX, y: pageH }; flip.p = { x: startX, y: pageH }; flip.v = { x: 0, y: 0 }; setFlipTarget(dir, true);
         }
-        nextBtn.addEventListener('click', () => triggerButtonFlip(1)); prevBtn.addEventListener('click', () => triggerButtonFlip(-1));
         
+        nextBtn.addEventListener('click', () => triggerButtonFlip(1)); prevBtn.addEventListener('click', () => triggerButtonFlip(-1));
         pageSlider.addEventListener('input', (e) => {
-            let targetPage = parseInt(e.target.value);
-            let targetSpread = isSinglePageMode ? targetPage - 1 : Math.floor(targetPage / 2);
-            targetSpread = Math.min(Math.max(0, targetSpread), maxIndex);
+            let targetSpread = Math.min(Math.max(0, isSinglePageMode ? parseInt(e.target.value, 10) - 1 : Math.floor(parseInt(e.target.value, 10) / 2)), maxIndex);
             if (targetSpread !== currentSpread) { currentSpread = targetSpread; updateUI(); if (initialLoaded) draw(); }
         });
-
-        const thumbObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const idx = parseInt(entry.target.dataset.index);
-                    if (imageLoadStatus[idx] === 0) loadImage(idx);
-                }
-            });
-        }, { root: document.getElementById('thumb-bar'), rootMargin: '100px' });
-
+        const thumbObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { if (entry.isIntersecting && imageLoadStatus[parseInt(entry.target.dataset.index, 10)] === 0) loadImage(parseInt(entry.target.dataset.index, 10)); }); }, { root: document.getElementById('thumb-bar'), rootMargin: '100px' });
         function generateThumbnails() {
             thumbBar.innerHTML = '';
             imageUrls.forEach((url, index) => {
-                const item = document.createElement('div');
-                item.className = 'thumb-item';
-                item.id = `thumb-${index}`;
-                item.dataset.index = index;
-                item.innerHTML = `
-                    <div class="thumb-img-container" id="thumb-img-box-${index}">
-                        <i class="fas fa-spinner fa-spin"></i>
-                    </div>
-                    <div class="thumb-page-num">${index + 1}</div>
-                `;
-                item.addEventListener('click', () => {
-                    let targetSpread = isSinglePageMode ? index : Math.floor((index + 1) / 2);
-                    currentSpread = Math.min(Math.max(0, targetSpread), maxIndex);
-                    updateUI(); if (initialLoaded) draw();
-                });
-                thumbBar.appendChild(item);
-                thumbObserver.observe(item);
-
-                if(imageLoadStatus[index] === 2 || imageLoadStatus[index] === -1) updateThumbnail(index);
+                const item = document.createElement('div'); item.className = 'thumb-item'; item.id = `thumb-${index}`; item.dataset.index = index;
+                item.innerHTML = `<div class="thumb-img-container" id="thumb-img-box-${index}"><i class="fas fa-spinner fa-spin"></i></div><div class="thumb-page-num">${index + 1}</div>`;
+                item.addEventListener('click', () => { currentSpread = Math.min(Math.max(0, isSinglePageMode ? index : Math.floor((index + 1) / 2)), maxIndex); updateUI(); if (initialLoaded) draw(); });
+                thumbBar.appendChild(item); thumbObserver.observe(item);
+                if (imageLoadStatus[index] === 2 || imageLoadStatus[index] === -1) updateThumbnail(index);
             });
         }
-
         function updateThumbnail(idx) {
             const box = document.getElementById(`thumb-img-box-${idx}`);
-            if(box) {
-                if(imageLoadStatus[idx] === 2 && images[idx]) box.innerHTML = `<img src="${images[idx].src}" class="thumb-img">`;
+            if (box) {
+                if (imageLoadStatus[idx] === 2 && images[idx]) box.innerHTML = `<img src="${images[idx].src}" class="thumb-img" alt="P.${idx+1}">`;
                 else if (imageLoadStatus[idx] === -1) box.innerHTML = `<div class="thumb-error"><i class="fas fa-exclamation-triangle"></i></div>`;
             }
         }
-        
-        document.getElementById('btn-grid').addEventListener('click', function(e) {
-            e.stopPropagation(); thumbBar.classList.toggle('active'); this.classList.toggle('active');
-            document.getElementById('share-popup').classList.remove('active'); 
-            if (thumbBar.classList.contains('active')) updateUI();
-        });
-
-        const shareBtn = document.getElementById('btn-share'); const sharePopup = document.getElementById('share-popup');
-        const shareUrlInput = document.getElementById('share-url-input'); const qrImg = document.getElementById('qr-img');
-
-        shareBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); sharePopup.classList.toggle('active'); thumbBar.classList.remove('active'); document.getElementById('btn-grid').classList.remove('active');
-            if (sharePopup.classList.contains('active')) {
-                const currentUrl = window.location.href; const encodedUrl = encodeURIComponent(currentUrl);
-                shareUrlInput.value = currentUrl; qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodedUrl}&margin=0`;
-            }
-        });
-
+        document.getElementById('btn-grid').addEventListener('click', function(e) { e.stopPropagation(); thumbBar.classList.toggle('active'); this.classList.toggle('active'); document.getElementById('share-popup').classList.remove('active'); if (thumbBar.classList.contains('active')) updateUI(); });
+        const shareBtn = document.getElementById('btn-share'); const sharePopup = document.getElementById('share-popup'); const shareUrlInput = document.getElementById('share-url-input'); const qrImg = document.getElementById('qr-img');
+        shareBtn.addEventListener('click', (e) => { e.stopPropagation(); sharePopup.classList.toggle('active'); thumbBar.classList.remove('active'); document.getElementById('btn-grid').classList.remove('active'); if (sharePopup.classList.contains('active')) { const url = window.location.href; shareUrlInput.value = url; qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}&margin=0`; }});
         const getUrl = () => encodeURIComponent(window.location.href); const getTitle = () => encodeURIComponent(document.title);
-        document.getElementById('share-fb').addEventListener('click', () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${getUrl()}`, '_blank', 'width=600,height=400'));
-        document.getElementById('share-x').addEventListener('click', () => window.open(`https://twitter.com/intent/tweet?url=${getUrl()}&text=${getTitle()}`, '_blank', 'width=600,height=400'));
-        document.getElementById('share-line').addEventListener('click', () => window.open(`https://social-plugins.line.me/lineit/share?url=${getUrl()}`, '_blank', 'width=600,height=500'));
-        document.getElementById('share-in').addEventListener('click', () => window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${getUrl()}&title=${getTitle()}`, '_blank', 'width=600,height=500'));
-        document.getElementById('share-pin').addEventListener('click', () => { let imgUrl = imageUrls.length > 0 ? encodeURIComponent(imageUrls[0]) : ''; window.open(`https://pinterest.com/pin/create/button/?url=${getUrl()}&media=${imgUrl}&description=${getTitle()}`, '_blank', 'width=600,height=500'); });
-        document.getElementById('share-email').addEventListener('click', () => window.location.href = `mailto:?subject=${getTitle()}&body=來看看這本翻頁書：${window.location.href}`);
-        document.getElementById('share-more').addEventListener('click', () => {
-            if (navigator.share) navigator.share({ title: document.title, text: '來看看這本線上翻頁書！', url: window.location.href }).catch(err => console.log('分享取消或失敗', err));
-            else alert("您的瀏覽器不支援原生分享選單，請使用上方其他按鈕或直接複製網址。");
-        });
-
-        shareUrlInput.addEventListener('click', function() {
-            this.select(); document.execCommand("copy");
-            let originalBg = this.style.backgroundColor; this.style.backgroundColor = "#e8f0fe";
-            setTimeout(() => { this.style.backgroundColor = originalBg; alert("網址已複製！"); }, 100);
-        });
-
+        document.getElementById('share-fb').addEventListener('click', () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${getUrl()}`, '_blank', 'width=600,height=400')); document.getElementById('share-x').addEventListener('click', () => window.open(`https://twitter.com/intent/tweet?url=${getUrl()}&text=${getTitle()}`, '_blank', 'width=600,height=400')); document.getElementById('share-line').addEventListener('click', () => window.open(`https://social-plugins.line.me/lineit/share?url=${getUrl()}`, '_blank', 'width=600,height=500')); document.getElementById('share-in').addEventListener('click', () => window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${getUrl()}&title=${getTitle()}`, '_blank', 'width=600,height=500')); document.getElementById('share-pin').addEventListener('click', () => { let img = imageUrls.length > 0 ? encodeURIComponent(imageUrls[0]) : ''; window.open(`https://pinterest.com/pin/create/button/?url=${getUrl()}&media=${img}&description=${getTitle()}`, '_blank', 'width=600,height=500'); }); document.getElementById('share-email').addEventListener('click', () => window.location.href = `mailto:?subject=${getTitle()}&body=來看看這本翻頁書：${window.location.href}`); document.getElementById('share-more').addEventListener('click', () => { if (navigator.share) navigator.share({ title: document.title, text: '來看看這本線上翻頁書！', url: window.location.href }).catch(() => {}); else alert("您的瀏覽器不支援系統分享選單，可直接點擊下方網址複製。"); });
+        shareUrlInput.addEventListener('click', async function() { this.select(); let copied = false; if (navigator.clipboard && navigator.clipboard.writeText) { try { await navigator.clipboard.writeText(window.location.href); copied = true; } catch(e) {} } if (!copied) { document.execCommand("copy"); } let originalBg = this.style.backgroundColor; this.style.backgroundColor = "#e8f0fe"; setTimeout(() => { this.style.backgroundColor = originalBg; alert("網址已成功複製到剪貼簿！"); }, 100); });
         sharePopup.addEventListener('click', (e) => e.stopPropagation()); document.addEventListener('click', () => sharePopup.classList.remove('active'));
+        document.getElementById('btn-zoom-in').addEventListener('click', () => { currentZoom = Math.min(3, currentZoom + 0.25); if (initialLoaded) draw(); }); document.getElementById('btn-zoom-out').addEventListener('click', () => { currentZoom = Math.max(0.8, currentZoom - 0.25); if (currentZoom <= 1) { panX = 0; panY = 0; currentZoom = 1; } if (initialLoaded) draw(); }); document.getElementById('btn-fullscreen').addEventListener('click', () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); else document.exitFullscreen().catch(() => {}); });
+        pageDisplay.addEventListener('click', () => { let p = prompt(`輸入欲跳轉的頁數 (1 - ${imageUrls.length}):`); if (p && !isNaN(parseInt(p, 10))) { let val = parseInt(p, 10); if (val >= 1 && val <= imageUrls.length) { pageSlider.value = val; pageSlider.dispatchEvent(new Event('input')); } } });
+// 新增：跳到首頁事件
+document.getElementById('btn-first').addEventListener('click', () => {
+    if (currentSpread !== 0) {
+        currentSpread = 0;
+        updateUI();
+        if (initialLoaded) draw();
+    }
+});
 
-        document.getElementById('btn-zoom-in').addEventListener('click', () => { currentZoom = Math.min(3, currentZoom + 0.25); if (initialLoaded) draw(); });
-        document.getElementById('btn-zoom-out').addEventListener('click', () => { currentZoom = Math.max(0.5, currentZoom - 0.25); if (currentZoom <= 1) { panX = 0; panY = 0; currentZoom = 1; } if (initialLoaded) draw(); });
+// 新增：跳到末頁事件
+document.getElementById('btn-last').addEventListener('click', () => {
+    if (currentSpread !== maxIndex) {
+        currentSpread = maxIndex;
+        updateUI();
+        if (initialLoaded) draw();
+    }
+});    
 
-        document.getElementById('btn-fullscreen').addEventListener('click', () => {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(err => console.log(`Error: ${err.message}`));
-            else document.exitFullscreen();
-        });
-
-        pageDisplay.addEventListener('click', () => {
-            let p = prompt(`輸入欲跳轉的頁數 (1 - ${imageUrls.length}):`);
-            if (p) {
-                let targetPage = parseInt(p);
-                if (!isNaN(targetPage) && targetPage >= 1 && targetPage <= imageUrls.length) {
-                    pageSlider.value = targetPage; pageSlider.dispatchEvent(new Event('input'));
-                }
-            }
-        });
-
-    </script>
+</script>
 </body>
 </html>
