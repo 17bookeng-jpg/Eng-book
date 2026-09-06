@@ -54,7 +54,24 @@
         .thumb-img { width: 100%; height: 100%; object-fit: cover; }
         .thumb-page-num { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7); color: #fff; text-align: center; font-size: 11px; padding: 2px 0; font-family: monospace; }
         @media (max-width: 768px) { .toolbar { padding: 0 10px; gap: 8px; } .nav-btn { width: 42px; height: 42px; font-size: 20px; } .left-btn { left: 10px; } .right-btn { right: 10px; } .share-popup { left: -50px; } .share-popup::after { left: 55px; } }
-    </style>
+		.toast-msg {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.55);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 15px;
+            letter-spacing: 1px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 200;
+        }
+        .toast-msg.show { opacity: 1; }
+	</style>
 </head>
 <body>
 
@@ -63,6 +80,8 @@
         <button id="prev-btn" class="nav-btn left-btn" disabled title="上一頁 (←)">❮</button>
         <button id="next-btn" class="nav-btn right-btn" disabled title="下一頁 (→)">❯</button>
         <canvas id="flipbook"></canvas>
+		<!-- 新增以下這行 -->
+        <div id="toast-msg" class="toast-msg">這是最後一頁</div>
     </div>
 
     <div class="thumb-bar" id="thumb-bar"></div>
@@ -545,16 +564,27 @@ ctx.fillRect(-pageW*2, -pageH*2, pageW*4, pageH*4);
             return { x: canvasX - spineX, y: canvasY - paddingY, globalX: clientX, globalY: clientY };
         }
 
+        // 新增：顯示提示訊息的函數
+        let toastTimeout;
+        function showToast(msg) {
+            const toast = document.getElementById('toast-msg');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // 替換：更新 checkCorner 判斷邏輯，標記出「被阻擋 (blocked)」的翻頁嘗試
         function checkCorner(local) {
             let isTop = local.y < pageH * 0.5; let cornerY = isTop ? 0 : pageH;
             let isNearCornerY = isTop ? (local.y < pageH * 0.3) : (local.y > pageH * 0.7);
             if (isNearCornerY) {
                 if (isSinglePageMode) {
-                    if (local.x > pageW * 0.7 && currentSpread < maxIndex) return { x: pageW, y: cornerY, dir: 1 };
-                    if (local.x < pageW * 0.3 && currentSpread > 0) return { x: 0, y: cornerY, dir: -1 };
+                    if (local.x > pageW * 0.7) return { x: pageW, y: cornerY, dir: 1, blocked: currentSpread >= maxIndex };
+                    if (local.x < pageW * 0.3) return { x: 0, y: cornerY, dir: -1, blocked: currentSpread <= 0 };
                 } else {
-                    if (local.x > pageW * 0.5 && currentSpread < maxIndex) return { x: pageW, y: cornerY, dir: 1 };
-                    if (local.x < -pageW * 0.5 && currentSpread > 0) return { x: -pageW, y: cornerY, dir: -1 };
+                    if (local.x > pageW * 0.5) return { x: pageW, y: cornerY, dir: 1, blocked: currentSpread >= maxIndex };
+                    if (local.x < -pageW * 0.5) return { x: -pageW, y: cornerY, dir: -1, blocked: currentSpread <= 0 };
                 }
             }
             return null;
@@ -574,6 +604,11 @@ ctx.fillRect(-pageW*2, -pageH*2, pageW*4, pageH*4);
             let corner = checkCorner(local);
             
             if (corner && currentZoom === 1) {
+                // 新增：如果已被阻擋（極限頁），顯示提示並終止翻頁
+                if (corner.blocked) {
+                    showToast(corner.dir === 1 ? "這是最後一頁" : "這是第一頁");
+                    return; 
+                }
                 flip.active = true; flip.animating = false; flip.hovering = false; flip.isRetracting = false; flip.dragging = true;
                 flip.dir = corner.dir; flip.cornerBase = { x: corner.x, y: corner.y };
                 flip.p = local; dragStart = local; canvas.style.cursor = 'grabbing'; swipeStartGlobal.time = 0; e.preventDefault();
@@ -597,8 +632,10 @@ ctx.fillRect(-pageW*2, -pageH*2, pageW*4, pageH*4);
             } else if (!flip.animating) {
                 let local = getLocalPointer(e); let corner = checkCorner(local);
                 
-                if (corner && (!e.pointerType || e.pointerType === 'mouse') && currentZoom === 1) {
-                    canvas.style.cursor = 'pointer';
+                // 找到這行並替換：
+            if (corner && !corner.blocked && (!e.pointerType || e.pointerType === 'mouse') && currentZoom === 1) {
+                canvas.style.cursor = 'pointer';
+				
                     if (!flip.hovering || flip.dir !== corner.dir || flip.cornerBase.y !== corner.y) {
                         let wasHovering = flip.hovering; let oldDir = flip.dir; let oldCornerY = flip.cornerBase.y;
                         flip.active = true; flip.hovering = true; flip.isRetracting = false;
@@ -634,7 +671,13 @@ ctx.fillRect(-pageW*2, -pageH*2, pageW*4, pageH*4);
             } else if (swipeStartGlobal.time > 0) {
                 let local = getLocalPointer(e); let dx = local.globalX - swipeStartGlobal.x; let dy = local.globalY - swipeStartGlobal.y;
                 if (currentZoom === 1 && Date.now() - swipeStartGlobal.time < 400 && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-                    if (dx < 0 && currentSpread < maxIndex) triggerButtonFlip(1); else if (dx > 0 && currentSpread > 0) triggerButtonFlip(-1); 
+                    if (dx < 0) {
+                        if (currentSpread < maxIndex) triggerButtonFlip(1); 
+                        else showToast("這是最後一頁");
+                    } else if (dx > 0) {
+                        if (currentSpread > 0) triggerButtonFlip(-1); 
+                        else showToast("這是第一頁");
+                    }
                 }
                 swipeStartGlobal.time = 0;
             }
@@ -662,8 +705,14 @@ ctx.fillRect(-pageW*2, -pageH*2, pageW*4, pageH*4);
         }, { passive: false });
         window.addEventListener('keydown', (e) => {
             if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-            if (e.key === 'ArrowRight' || e.key === 'PageDown') { if (currentSpread < maxIndex) triggerButtonFlip(1); }
-            else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { if (currentSpread > 0) triggerButtonFlip(-1); }
+            if (e.key === 'ArrowRight' || e.key === 'PageDown') { 
+                if (currentSpread < maxIndex) triggerButtonFlip(1); 
+                else showToast("這是最後一頁");
+            }
+            else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { 
+                if (currentSpread > 0) triggerButtonFlip(-1); 
+                else showToast("這是第一頁");
+            }
             else if (e.key === 'Home') { currentSpread = 0; updateUI(); if (initialLoaded) draw(); }
             else if (e.key === 'End') { currentSpread = maxIndex; updateUI(); if (initialLoaded) draw(); }
             else if (e.key === 'Escape') { currentZoom = 1; panX = 0; panY = 0; thumbBar.classList.remove('active'); sharePopup.classList.remove('active'); if (initialLoaded) draw(); }
